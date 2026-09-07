@@ -79,6 +79,125 @@ Risk Evaluation
 Alerts / Paper Exit Decision
 ```
 
+## Approved technology stack — mandatory default
+
+Unless a documented architectural decision changes it, use this stack:
+
+- **Frontend:** Angular + TypeScript
+- **Backend/API:** C# + ASP.NET Core on .NET 10
+- **Core domain/business logic:** C# with strongly typed contracts and clean architecture boundaries
+- **Quantitative ML/AI:** Python where justified, exposed through a clear service boundary such as FastAPI
+- **Cloud AI:** configurable cloud AI provider, defaulting to OpenAI-compatible/cloud AI capability
+- **Local LLM:** Ollama initially, behind the same AI provider abstraction
+- **Primary database:** PostgreSQL
+- **Time-series market data:** PostgreSQL with TimescaleDB where justified; do not introduce a separate time-series database without an architectural reason
+- **Cache/coordination:** Redis where justified
+- **Messaging/events:** RabbitMQ initially; consider Kafka only when scale/streaming requirements justify it
+- **Background processing:** .NET Worker Services / hosted background services for application-owned jobs
+- **Containers:** Docker and Docker Compose for local development and reproducible environments
+- **CI/CD:** GitHub Actions
+- **Observability:** OpenTelemetry-compatible tracing/metrics and structured logging
+- **Testing:** xUnit for .NET and pytest for Python
+- **API contract/documentation:** OpenAPI/Swagger
+
+Do not introduce additional frameworks, databases, brokers, or infrastructure technologies without a clear architectural reason documented in the repository.
+
+Do not rewrite the backend in Python merely because the platform uses ML. Keep product/business logic in .NET and use Python for quantitative/ML workloads where its ecosystem provides a meaningful advantage.
+
+## Technology boundary rule
+
+The platform is a **trading platform with an AI/ML intelligence layer**, not an unconstrained AI application.
+
+C#/.NET should own product-critical business logic including:
+
+- API/application orchestration
+- Trading domain
+- Portfolio and positions
+- Paper execution
+- Risk engine
+- Alerts
+- Provider abstractions
+- Background workers
+- Configuration
+- Persistence
+- Auditability
+
+Python should own workloads where the Python ecosystem provides a clear advantage, including:
+
+- Feature engineering
+- Statistical modelling
+- ML training/inference
+- NLP/sentiment processing
+- Quantitative research
+- Backtesting research where appropriate
+- Model evaluation
+
+The boundary between .NET and Python must use explicit, versioned, strongly defined contracts. Do not couple core domain models directly to Python implementation details.
+
+## AI provider abstraction — mandatory
+
+AI must be provider-agnostic from the application/business-logic perspective.
+
+The default AI capability is cloud AI, but the system must support switching to a local LLM without changing core business logic.
+
+Use an abstraction conceptually equivalent to:
+
+```csharp
+public interface IAiProvider
+{
+    Task<AiResearchResult> ResearchAsync(
+        AiResearchRequest request,
+        CancellationToken cancellationToken);
+
+    Task<AiAnalysisResult> AnalyzeAsync(
+        AiAnalysisRequest request,
+        CancellationToken cancellationToken);
+
+    Task<AiExplanation> ExplainAsync(
+        AiExplanationRequest request,
+        CancellationToken cancellationToken);
+}
+```
+
+Provider implementations may include:
+
+```text
+IAiProvider
+    ├── Cloud/OpenAI provider
+    └── Ollama/local LLM provider
+```
+
+AI provider selection must be configuration-driven, for example:
+
+```yaml
+ai:
+  provider: cloud
+
+  cloud:
+    provider: openai
+    model: <configured-model>
+
+  local:
+    provider: ollama
+    model: <configured-model>
+    endpoint: http://localhost:11434
+```
+
+Switching to local AI should require configuration changes, not changes to recommendation, risk, portfolio, or trading business logic.
+
+AI may be used for:
+
+- Financial/company research
+- News interpretation
+- Event interpretation
+- Sentiment interpretation
+- Recommendation explanation
+- Research questions
+- Strategy discussion
+- Natural-language summaries over structured platform data
+
+AI/LLM must **never** directly bypass deterministic risk controls or directly execute trades. All recommendations must pass through the deterministic risk engine and paper-execution boundary.
+
 ## Provider abstraction — mandatory
 
 Angel One is only the initial provider. Core business logic must never depend directly on Angel One SDK/API types.
@@ -333,20 +452,6 @@ Do not hide losses or selectively report profitable trades.
 - No silent exception swallowing
 - No fabricated financial data
 - Explicit configuration instead of magic constants
-
-## Technology direction
-
-Preferred stack unless discovery changes it:
-
-- Backend/API: C# / ASP.NET Core
-- Frontend: Angular initially
-- ML/AI: Python service/component where justified
-- Database: PostgreSQL
-- Cache/coordination: Redis where justified
-- Containers: Docker
-- CI/CD: GitHub Actions
-
-Do not introduce technologies without a clear architectural reason.
 
 ## Repository organization
 
