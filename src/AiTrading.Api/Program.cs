@@ -18,11 +18,11 @@ builder.Services.AddSingleton<IPortfolio>(_ => new PaperPortfolio(1_000_000m));
 var app = builder.Build();
 app.MapOpenApi();
 
-app.MapGet("/api/market/{symbol}/quote", async (string symbol, IMarketDataProvider provider, CancellationToken ct) =>
-    Results.Ok(await provider.GetQuoteAsync(new Symbol(symbol.ToUpperInvariant()), ct)));
+app.MapGet("/api/market/{symbol}/quote", async (string symbol, string instrumentToken, IMarketDataProvider provider, CancellationToken ct) =>
+    Results.Ok(await provider.GetQuoteAsync(new Symbol(symbol.ToUpperInvariant(), instrumentToken), ct)));
 
-app.MapGet("/api/recommendations/{symbol}", async (string symbol, RecommendationService service, CancellationToken ct) =>
-    Results.Ok(await service.GetRecommendationAsync(new Symbol(symbol.ToUpperInvariant()), ct)));
+app.MapGet("/api/recommendations/{symbol}", async (string symbol, string instrumentToken, RecommendationService service, CancellationToken ct) =>
+    Results.Ok(await service.GetRecommendationAsync(new Symbol(symbol.ToUpperInvariant(), instrumentToken), ct)));
 
 app.MapGet("/api/portfolio", (IPortfolio portfolio) => Results.Ok(portfolio.Snapshot()));
 app.MapGet("/api/alerts", () => Results.Ok(Array.Empty<Alert>()));
