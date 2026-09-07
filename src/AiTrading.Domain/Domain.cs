@@ -6,7 +6,7 @@ public readonly record struct Symbol(string Value, string? InstrumentToken = nul
 }
 
 public sealed record Candle(DateTimeOffset Timestamp, decimal Open, decimal High, decimal Low, decimal Close, long Volume);
-public sealed record MarketQuote(Symbol Symbol, string Exchange, string InstrumentToken, DateTimeOffset Timestamp, decimal Open, decimal High, decimal Low, decimal Close, long Volume, string Source);
+public sealed record MarketQuote(Symbol Symbol, string Exchange, string InstrumentToken, DateTimeOffset Timestamp, decimal Open, decimal High, decimal Low, decimal Close, decimal LastTradedPrice, long Volume, string Source);
 
 public enum RecommendationAction { Buy, Hold, Sell, NoDecision }
 public enum RiskDecision { Approved, RiskBlocked, InsufficientData }
