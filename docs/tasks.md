@@ -1,65 +1,69 @@
 # Implementation Task Breakdown
 
-This checklist is derived from `docs/specs/v1-vertical-slice.md` and is ordered so each task leaves the repository in a buildable state.
+This checklist is the living delivery plan for the approved V1 vertical slice. Business/risk parameters that are intentionally open remain documented rather than invented.
 
 ## Spec gate
 
 - [x] Discovery Spec Kit exists.
 - [x] Vertical-slice specification approved for implementation.
 - [x] Architecture/implementation plan written.
-- [ ] Business/risk parameters that are intentionally open remain documented rather than invented.
+- [x] Open business/risk parameters documented.
 
 ## Milestone A — domain
 
-- [ ] Create .NET 10 solution/projects.
-- [ ] Add domain value objects and entities.
-- [ ] Add market-data provider contracts.
-- [ ] Add technical indicator calculations.
-- [ ] Add candlestick detectors.
-- [ ] Add recommendation contract and baseline strategy.
-- [ ] Add deterministic risk gate.
+- [x] Create .NET 10 solution/projects.
+- [x] Add domain value objects and entities.
+- [x] Add market-data provider contracts.
+- [x] Add technical indicator calculations.
+- [x] Add candlestick detectors.
+- [x] Add recommendation contract and baseline strategy.
+- [x] Add deterministic risk gate.
 
 ## Milestone B — paper trading
 
-- [ ] Add paper execution provider.
-- [ ] Add portfolio/cash/position accounting.
-- [ ] Add P&L calculations.
-- [ ] Add order/fill audit records.
-- [ ] Add unit tests for accounting invariants.
+- [x] Add paper execution provider.
+- [x] Add portfolio/cash/position accounting.
+- [x] Add realized P&L calculations.
+- [x] Add order/fill audit domain records.
+- [x] Add unit tests for accounting invariants.
 
 ## Milestone C — market integration
 
-- [ ] Add Angel One configuration/options.
-- [ ] Add SmartAPI HTTP client.
-- [ ] Add instrument master mapping.
-- [ ] Add quote/candle mapping tests using recorded fixtures.
-- [ ] Add provider failure/staleness handling.
+- [x] Add Angel One configuration/options.
+- [x] Add SmartAPI HTTP client.
+- [x] Add normalized quote/candle mapping.
+- [x] Add deterministic demo provider for development/testing.
+- [ ] Add recorded Angel One fixture tests.
+- [x] Add provider failure validation and required-token handling.
 
 ## Milestone D — API and monitoring
 
-- [ ] Add API endpoints and OpenAPI.
-- [ ] Add portfolio/alert query DTOs.
-- [ ] Add monitoring worker.
-- [ ] Add idempotent stop-loss alert generation.
-- [ ] Add worker tests with fake clock/provider.
+- [x] Add API endpoints and OpenAPI.
+- [x] Add portfolio/alert query endpoints.
+- [x] Add monitoring worker.
+- [x] Add idempotent stop-loss alert generation.
+- [x] Add worker/monitoring tests.
+- [x] Add health endpoint.
 
 ## Milestone E — CI and review
 
-- [ ] Add GitHub Actions build/test workflow.
-- [ ] Verify no secrets or live execution paths are present.
-- [ ] Review implementation against specification acceptance criteria.
+- [x] Add GitHub Actions build/test workflow.
+- [x] Verify no secrets are committed and live execution is unavailable.
+- [x] Add provider-neutral AI gateway boundary.
+- [ ] Run CI successfully against the latest commit.
+- [ ] Review implementation against all specification acceptance criteria.
 - [ ] Fix review findings.
-- [ ] Re-run CI.
-- [ ] Request explicit merge approval before merging to `main`.
+- [ ] Request explicit merge approval before merging feature work to `main`.
 
-## Follow-on specifications after V1 slice
+## Follow-on specifications
 
-1. Persistent PostgreSQL/TimescaleDB model.
-2. Fundamental data provider.
-3. News provider and time-aware sentiment.
-4. Prediction target/horizon and baseline ML model.
-5. AI provider gateway with cloud + Ollama.
-6. Autonomous opportunity loop.
-7. Portfolio/risk parameterization.
-8. Historical backtesting/evaluation.
-9. Angular dashboard.
+1. MySQL persistence implementation with migrations/repositories.
+2. Angular dashboard.
+3. Fundamental data provider.
+4. News provider and time-aware sentiment.
+5. Prediction target/horizon and baseline ML model.
+6. AI provider gateway with cloud AI + Ollama implementations.
+7. Autonomous opportunity loop.
+8. Portfolio/risk parameterization.
+9. Historical backtesting/evaluation.
+10. Redis/RabbitMQ event infrastructure when justified by load and workflow requirements.
