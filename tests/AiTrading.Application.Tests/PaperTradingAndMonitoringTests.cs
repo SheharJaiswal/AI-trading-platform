@@ -8,11 +8,13 @@ public class PaperTradingAndMonitoringTests
     [Fact]
     public async Task Approved_Buy_Is_Executed_And_Applied_To_Portfolio()
     {
-        var quote = new MarketQuote(new Symbol("TCS", "123"), "NSE", "123", DateTimeOffset.UtcNow, 100, 110, 95, 105, 106, 1000, "test");
-        var candles = Enumerable.Range(0, 20).Select(i => new Candle(DateTimeOffset.UtcNow.AddDays(-20 + i), 100 + i, 101 + i, 99 + i, 100 + i, 1000)).ToArray();
+        var symbol = new Symbol("TCS", "123");
+        var quote = new MarketQuote(symbol, "NSE", "123", DateTimeOffset.UtcNow, 120, 121, 112, 119, 120, 1000, "test");
+        var candles = Enumerable.Range(0, 19).Select(i => new Candle(DateTimeOffset.UtcNow.AddDays(-20 + i), 100 + i, 101 + i, 99 + i, 100 + i, 1000))
+            .Append(new Candle(DateTimeOffset.UtcNow.AddDays(-1), 117, 120, 112, 119, 1000)).ToArray();
         var service = new PaperTradingService(new RecommendationService(new FakeMarketData(quote, candles)), new RiskEngine(), new FakeExecution(), new PaperPortfolio(10000m));
 
-        var result = await service.ExecuteAsync(quote.Symbol, 1, CancellationToken.None);
+        var result = await service.ExecuteAsync(symbol, 1, CancellationToken.None);
 
         Assert.Equal(RiskDecision.Approved, result.Risk.Decision);
         Assert.NotNull(result.Fill);
