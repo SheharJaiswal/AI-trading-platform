@@ -20,6 +20,28 @@ public interface IPortfolio
     void SetStopLoss(Guid positionId, decimal stopLoss);
 }
 
+public interface IAlertStore
+{
+    bool TryAdd(Alert alert);
+    IReadOnlyList<Alert> GetAll();
+}
+
+public sealed class InMemoryAlertStore : IAlertStore
+{
+    private readonly Dictionary<string, Alert> _alerts = new();
+    private readonly object _gate = new();
+
+    public bool TryAdd(Alert alert)
+    {
+        lock (_gate) return _alerts.TryAdd(alert.Key, alert);
+    }
+
+    public IReadOnlyList<Alert> GetAll()
+    {
+        lock (_gate) return _alerts.Values.OrderByDescending(x => x.CreatedAt).ToArray();
+    }
+}
+
 public sealed class RecommendationService(IMarketDataProvider marketData)
 {
     public async Task<Recommendation> GetRecommendationAsync(Symbol symbol, CancellationToken cancellationToken)
@@ -49,6 +71,37 @@ public sealed class RiskEngine
         if (quantity <= 0) return new(RiskDecision.RiskBlocked, "Order quantity must be positive.");
         if (recommendation.ReferencePrice * quantity > availableCash) return new(RiskDecision.RiskBlocked, "Order exceeds available virtual cash.");
         return new(RiskDecision.Approved, null);
+    }
+}
+
+public sealed class PaperTradingService(RecommendationService recommendations, RiskEngine risk, IPaperExecutionProvider execution, IPortfolio portfolio)
+{
+    public async Task<(RiskResult Risk, Fill? Fill)> ExecuteAsync(Symbol symbol, int quantity, CancellationToken cancellationToken)
+    {
+        var recommendation = await recommendations.GetRecommendationAsync(symbol, cancellationToken);
+        var riskResult = risk.Evaluate(recommendation, portfolio.Snapshot().Cash, quantity);
+        if (riskResult.Decision != RiskDecision.Approved) return (riskResult, null);
+        var order = new PaperOrder(Guid.NewGuid(), symbol, OrderSide.Buy, quantity, recommendation.ReferencePrice, DateTimeOffset.UtcNow);
+        var fill = await execution.ExecuteAsync(order, cancellationToken);
+        portfolio.Apply(fill);
+        return (riskResult, fill);
+    }
+}
+
+public sealed class RiskMonitor(IMarketDataProvider marketData, IPortfolio portfolio, IAlertStore alerts)
+{
+    public async Task CheckOnceAsync(CancellationToken cancellationToken)
+    {
+        foreach (var position in portfolio.Snapshot().Positions)
+        {
+            if (position.StopLoss is null) continue;
+            var quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
+            if (quote.LastTradedPrice <= position.StopLoss)
+            {
+                var key = $"{position.Id}:STOP_LOSS";
+                alerts.TryAdd(new Alert(key, AlertSeverity.High, $"Stop loss breached for {position.Symbol} at {quote.LastTradedPrice}.", DateTimeOffset.UtcNow, position.Symbol));
+            }
+        }
     }
 }
 
