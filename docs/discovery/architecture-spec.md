@@ -9,7 +9,7 @@ ASP.NET Core / .NET 10
         ↓
 Application + Domain + Infrastructure
         ↓
-PostgreSQL / TimescaleDB
+MySQL
         ↕
 Redis
         ↕
@@ -25,6 +25,12 @@ AI Gateway
    ├── Cloud AI (default)
    └── Ollama local LLM
 ```
+
+## Persistence decision
+
+MySQL is the V1 system of record. Entity Framework Core is the default .NET persistence abstraction, using the Pomelo MySQL provider. MySQL-specific implementation details remain isolated in `AiTrading.Infrastructure`.
+
+For market/time-series data, V1 uses MySQL tables with appropriate symbol/timestamp indexes. A separate time-series database is not part of V1.
 
 ## Boundary rules
 
@@ -52,7 +58,7 @@ Prefer a small number of deployable components:
 2. ASP.NET Core API
 3. .NET Worker
 4. Python ML/AI service where required
-5. PostgreSQL/TimescaleDB
+5. MySQL
 6. Redis
 7. RabbitMQ
 
@@ -82,3 +88,8 @@ Provider → Adapter → Normalized Contract → Storage
 - Financial calculations must be deterministic.
 - Python models must expose versioned contracts.
 - Cloud/local AI must be interchangeable through configuration.
+- Domain/Application code must not depend on MySQL, EF Core, or Pomelo types.
+- Paper execution accounting must use database transactions.
+- Mutable portfolio/position state must use database-safe concurrency controls.
+- Database migrations must be source-controlled.
+- PostgreSQL/TimescaleDB must not be introduced unless a new architectural decision explicitly replaces MySQL.
