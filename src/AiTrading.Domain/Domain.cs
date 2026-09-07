@@ -1,6 +1,6 @@
 namespace AiTrading.Domain;
 
-public readonly record struct Symbol(string Value)
+public readonly record struct Symbol(string Value, string? InstrumentToken = null)
 {
     public override string ToString() => Value;
 }
