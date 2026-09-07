@@ -27,16 +27,16 @@ public sealed class RecommendationService(IMarketDataProvider marketData)
         var quote = await marketData.GetQuoteAsync(symbol, cancellationToken);
         var candles = await marketData.GetCandlesAsync(symbol, quote.Timestamp.AddDays(-40), quote.Timestamp, cancellationToken);
         if (candles.Count < 20)
-            return new(symbol, RecommendationAction.NoDecision, quote.Close, null, 0, 1, [], ["INSUFFICIENT_DATA"], DateTimeOffset.UtcNow, "baseline-v1");
+            return new(symbol, RecommendationAction.NoDecision, quote.LastTradedPrice, null, 0, 1, [], ["INSUFFICIENT_DATA"], DateTimeOffset.UtcNow, "baseline-v1");
 
         var technical = TechnicalAnalysis.Snapshot(candles);
         var patterns = CandlestickAnalysis.Detect(candles);
         var signals = new List<string>();
-        if (technical.Sma20 is { } sma && quote.Close > sma) signals.Add("PRICE_ABOVE_SMA20");
+        if (technical.Sma20 is { } sma && quote.LastTradedPrice > sma) signals.Add("PRICE_ABOVE_SMA20");
         if (technical.Rsi14 is { } rsi && rsi < 70) signals.Add("RSI_NOT_OVERBOUGHT");
         signals.AddRange(patterns.Where(x => x.Bullish).Select(x => $"BULLISH_{x.Name.Replace(' ', '_').ToUpperInvariant()}"));
         var bullish = signals.Count >= 2;
-        return new(symbol, bullish ? RecommendationAction.Buy : RecommendationAction.Hold, quote.Close, null, bullish ? 0.60m : 0.40m, 1, signals, [], DateTimeOffset.UtcNow, "baseline-v1");
+        return new(symbol, bullish ? RecommendationAction.Buy : RecommendationAction.Hold, quote.LastTradedPrice, null, bullish ? 0.60m : 0.40m, 1, signals, [], DateTimeOffset.UtcNow, "baseline-v1");
     }
 }
 
@@ -57,7 +57,6 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
     private decimal _cash = startingCash;
     private decimal _realized;
     private readonly Dictionary<Symbol, Position> _positions = new();
-    private readonly Dictionary<Guid, decimal> _stopLosses = new();
 
     public Portfolio Snapshot() => new(_cash, _positions.Values.ToArray(), 0, _realized);
 
