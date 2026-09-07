@@ -11,5 +11,7 @@ builder.Services.AddSingleton(new AngelOneOptions
     BaseUrl = builder.Configuration["AngelOne:BaseUrl"] ?? "https://apiconnect.angelone.in"
 });
 builder.Services.AddSingleton<IPortfolio>(_ => new PaperPortfolio(1_000_000m));
+builder.Services.AddSingleton<IAlertStore, InMemoryAlertStore>();
+builder.Services.AddSingleton<RiskMonitor>();
 builder.Services.AddHostedService<MonitoringWorker>();
 await builder.Build().RunAsync();
