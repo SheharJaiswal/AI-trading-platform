@@ -89,8 +89,9 @@ Unless a documented architectural decision changes it, use this stack:
 - **Quantitative ML/AI:** Python where justified, exposed through a clear service boundary such as FastAPI
 - **Cloud AI:** configurable cloud AI provider, defaulting to OpenAI-compatible/cloud AI capability
 - **Local LLM:** Ollama initially, behind the same AI provider abstraction
-- **Primary database:** PostgreSQL
-- **Time-series market data:** PostgreSQL with TimescaleDB where justified; do not introduce a separate time-series database without an architectural reason
+- **Primary database:** MySQL
+- **ORM/persistence:** Entity Framework Core with the Pomelo MySQL provider
+- **Time-series market data:** MySQL using indexed time-series tables; do not introduce a separate time-series database in V1
 - **Cache/coordination:** Redis where justified
 - **Messaging/events:** RabbitMQ initially; consider Kafka only when scale/streaming requirements justify it
 - **Background processing:** .NET Worker Services / hosted background services for application-owned jobs
@@ -133,6 +134,26 @@ Python should own workloads where the Python ecosystem provides a clear advantag
 - Model evaluation
 
 The boundary between .NET and Python must use explicit, versioned, strongly defined contracts. Do not couple core domain models directly to Python implementation details.
+
+## Persistence and database rules
+
+MySQL is the V1 system of record.
+
+- Use Entity Framework Core as the default persistence abstraction.
+- Use the Pomelo.EntityFrameworkCore.MySql provider for MySQL.
+- Database-specific code belongs in `AiTrading.Infrastructure`.
+- Domain and Application projects must not reference EF Core, MySQL, or provider-specific types.
+- Use database transactions for paper execution and other atomic accounting operations.
+- Protect mutable portfolio/position state with optimistic concurrency or an equivalent database-safe mechanism; process-local locks are insufficient.
+- Use UTC timestamps internally.
+- Use appropriate MySQL indexes for symbol/time queries and operational lookups.
+- Use source-controlled EF Core migrations.
+- Do not make application startup automatically mutate production schemas unless a later operational specification explicitly approves it.
+- Connection strings, passwords, and credentials must come from configuration/secrets and never source control.
+- Do not introduce PostgreSQL, TimescaleDB, or another primary database unless a new architectural decision explicitly replaces MySQL.
+- MySQL-specific implementation details must remain behind Infrastructure repository boundaries.
+
+The persistence model must support durable portfolios, positions, paper orders, fills, risk alerts, normalized market snapshots, and recommendation history.
 
 ## AI provider abstraction — mandatory
 
@@ -501,32 +522,6 @@ Do not make unrelated changes in a feature branch. Do not merge blindly; review 
 Maintain documentation for architecture and important decisions. Use ADRs where appropriate.
 
 Document provider contracts, data models, prediction methodology, paper-trading assumptions, risk rules, background jobs, alert semantics, evaluation methodology, and known limitations.
-
-## Testing
-
-Business-critical automated tests must cover, as applicable:
-
-- Candlestick detection
-- Technical calculations
-- Recommendation logic
-- Risk rules
-- Position sizing
-- Order/fill behavior
-- P&L calculations
-- Alert generation/deduplication
-- Provider mapping/normalization
-- Background-job idempotency
-
-Use deterministic fixtures for financial calculations.
-
-## Security
-
-- Never commit API keys, tokens, passwords, or broker secrets.
-- Use environment variables/secret stores.
-- Never expose broker credentials to the frontend.
-- Validate external input.
-- Protect configuration/admin endpoints.
-- Keep paper trading isolated from any future live execution path.
 
 ## Working with the user
 
