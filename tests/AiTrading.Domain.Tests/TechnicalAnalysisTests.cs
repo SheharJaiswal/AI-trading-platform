@@ -1,4 +1,5 @@
 using AiTrading.Domain;
+using Xunit;
 
 namespace AiTrading.Domain.Tests;
 
@@ -24,5 +25,45 @@ public class TechnicalAnalysisTests
         var candles = new[] { new Candle(DateTimeOffset.UtcNow, 100m, 110m, 90m, 100.5m, 1000) };
         var result = CandlestickAnalysis.Detect(candles);
         Assert.Contains(result, x => x.Name == "Doji");
+    }
+
+    [Fact]
+    public void Hammer_Is_Detected()
+    {
+        var candles = new[] { new Candle(DateTimeOffset.UtcNow, 100m, 102m, 90m, 101m, 1000) };
+        var result = CandlestickAnalysis.Detect(candles);
+        Assert.Contains(result, x => x.Name == "Hammer" && x.Bullish);
+    }
+
+    [Fact]
+    public void Shooting_Star_Is_Detected()
+    {
+        var candles = new[] { new Candle(DateTimeOffset.UtcNow, 101m, 110m, 99m, 100m, 1000) };
+        var result = CandlestickAnalysis.Detect(candles);
+        Assert.Contains(result, x => x.Name == "Shooting Star" && !x.Bullish);
+    }
+
+    [Fact]
+    public void Bullish_Engulfing_Is_Detected()
+    {
+        var candles = new[]
+        {
+            new Candle(DateTimeOffset.UtcNow.AddMinutes(-1), 105m, 106m, 99m, 100m, 1000),
+            new Candle(DateTimeOffset.UtcNow, 99m, 107m, 98m, 106m, 1000)
+        };
+        var result = CandlestickAnalysis.Detect(candles);
+        Assert.Contains(result, x => x.Name == "Bullish Engulfing" && x.Bullish);
+    }
+
+    [Fact]
+    public void Bearish_Engulfing_Is_Detected()
+    {
+        var candles = new[]
+        {
+            new Candle(DateTimeOffset.UtcNow.AddMinutes(-1), 100m, 106m, 99m, 105m, 1000),
+            new Candle(DateTimeOffset.UtcNow, 106m, 107m, 98m, 99m, 1000)
+        };
+        var result = CandlestickAnalysis.Detect(candles);
+        Assert.Contains(result, x => x.Name == "Bearish Engulfing" && !x.Bullish);
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using AiTrading.Application;
 using AiTrading.Infrastructure;
 using AiTrading.Worker;
@@ -13,5 +14,8 @@ builder.Services.AddSingleton(new AngelOneOptions
 builder.Services.AddSingleton<IPortfolio>(_ => new PaperPortfolio(1_000_000m));
 builder.Services.AddSingleton<IAlertStore, InMemoryAlertStore>();
 builder.Services.AddSingleton<RiskMonitor>();
+builder.Services.AddSingleton<Func<CancellationToken, Task>>(sp => sp.GetRequiredService<RiskMonitor>().CheckOnceAsync);
+builder.Services.AddSingleton<IWorkerDelay, WorkerDelay>();
+builder.Services.AddSingleton(MonitoringWorkerOptions.Default);
 builder.Services.AddHostedService<MonitoringWorker>();
 await builder.Build().RunAsync();

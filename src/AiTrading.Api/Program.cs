@@ -6,6 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 var marketProvider = builder.Configuration["MarketData:Provider"]?.Trim().ToLowerInvariant() ?? "demo";
+var maxAgeSeconds = builder.Configuration.GetValue<int?>("MarketData:MaxAgeSeconds") ?? 300;
+if (maxAgeSeconds <= 0) throw new InvalidOperationException("MarketData:MaxAgeSeconds must be positive.");
+builder.Services.AddSingleton(new MarketDataFreshnessOptions(TimeSpan.FromSeconds(maxAgeSeconds)));
+
 if (marketProvider == "angelone")
 {
     builder.Services.AddHttpClient<IMarketDataProvider, AngelOneMarketDataProvider>();
@@ -29,7 +33,6 @@ builder.Services.AddSingleton<IPortfolio>(_ => new PaperPortfolio(1_000_000m));
 builder.Services.AddSingleton<IAlertStore, InMemoryAlertStore>();
 builder.Services.AddSingleton<RiskMonitor>();
 builder.Services.AddSingleton<PaperTradingService>();
-builder.Services.AddHostedService<RiskMonitoringHostedService>();
 
 var app = builder.Build();
 app.MapOpenApi();

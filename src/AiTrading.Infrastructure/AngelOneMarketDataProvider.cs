@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AiTrading.Application;
 using AiTrading.Domain;
 
@@ -37,7 +39,9 @@ public sealed class AngelOneMarketDataProvider(HttpClient http, AngelOneOptions 
         if (!payload.Status || payload.Data is null || payload.Data.Fetched.Count == 0)
             throw new InvalidOperationException($"Angel One quote failed: {payload.Message} {payload.Errorcode}");
         var data = payload.Data.Fetched[0];
-        return new(symbol, data.Exchange, data.SymbolToken, DateTimeOffset.UtcNow, data.Open, data.High, data.Low, data.Close, data.Ltp, data.TradeVolume, "angelOne");
+        if (!DateTimeOffset.TryParse(data.ExchFeedTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var exchangeTime))
+            throw new InvalidOperationException("Angel One quote did not contain a valid exchange feed timestamp.");
+        return new(symbol, data.Exchange, data.SymbolToken, exchangeTime, data.Open, data.High, data.Low, data.Close, data.Ltp, data.TradeVolume, "angelOne");
     }
 
     public async Task<IReadOnlyList<Candle>> GetCandlesAsync(Symbol symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken)
@@ -70,7 +74,9 @@ public sealed class AngelOneMarketDataProvider(HttpClient http, AngelOneOptions 
     private static Candle ParseCandle(List<JsonElement> row)
     {
         if (row.Count < 6) throw new InvalidOperationException("Invalid Angel One candle row.");
-        return new(DateTimeOffset.Parse(row[0].GetString()!), row[1].GetDecimal(), row[2].GetDecimal(), row[3].GetDecimal(), row[4].GetDecimal(), row[5].GetInt64());
+        if (!DateTimeOffset.TryParse(row[0].GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var timestamp))
+            throw new InvalidOperationException("Invalid Angel One candle timestamp.");
+        return new(timestamp, row[1].GetDecimal(), row[2].GetDecimal(), row[3].GetDecimal(), row[4].GetDecimal(), row[5].GetInt64());
     }
 }
 

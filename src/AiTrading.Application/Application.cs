@@ -18,6 +18,7 @@ public interface IPortfolio
     Portfolio Snapshot();
     void Apply(Fill fill);
     void SetStopLoss(Guid positionId, decimal stopLoss);
+    void UpdateMarketPrice(Symbol symbol, decimal price);
 }
 
 public interface IAlertStore
@@ -42,14 +43,28 @@ public sealed class InMemoryAlertStore : IAlertStore
     }
 }
 
-public sealed class RecommendationService(IMarketDataProvider marketData)
+public sealed record MarketDataFreshnessOptions(TimeSpan MaxAge)
 {
+    public static MarketDataFreshnessOptions Default => new(TimeSpan.FromMinutes(5));
+}
+
+public sealed class RecommendationService(IMarketDataProvider marketData, MarketDataFreshnessOptions? freshness = null)
+{
+    private readonly MarketDataFreshnessOptions _freshness = freshness ?? MarketDataFreshnessOptions.Default;
+
     public async Task<Recommendation> GetRecommendationAsync(Symbol symbol, CancellationToken cancellationToken)
     {
         var quote = await marketData.GetQuoteAsync(symbol, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        var age = now - quote.Timestamp;
+        if (quote.Timestamp > now || age > _freshness.MaxAge)
+        {
+            return new(symbol, RecommendationAction.NoDecision, quote.LastTradedPrice, null, 0, 1, [], ["STALE_OR_INVALID_MARKET_DATA"], now, "baseline-v1");
+        }
+
         var candles = await marketData.GetCandlesAsync(symbol, quote.Timestamp.AddDays(-40), quote.Timestamp, cancellationToken);
         if (candles.Count < 20)
-            return new(symbol, RecommendationAction.NoDecision, quote.LastTradedPrice, null, 0, 1, [], ["INSUFFICIENT_DATA"], DateTimeOffset.UtcNow, "baseline-v1");
+            return new(symbol, RecommendationAction.NoDecision, quote.LastTradedPrice, null, 0, 1, [], ["INSUFFICIENT_DATA"], now, "baseline-v1");
 
         var technical = TechnicalAnalysis.Snapshot(candles);
         var patterns = CandlestickAnalysis.Detect(candles);
@@ -58,7 +73,7 @@ public sealed class RecommendationService(IMarketDataProvider marketData)
         if (technical.Rsi14 is { } rsi && rsi < 70) signals.Add("RSI_NOT_OVERBOUGHT");
         signals.AddRange(patterns.Where(x => x.Bullish).Select(x => $"BULLISH_{x.Name.Replace(' ', '_').ToUpperInvariant()}"));
         var bullish = signals.Count >= 2;
-        return new(symbol, bullish ? RecommendationAction.Buy : RecommendationAction.Hold, quote.LastTradedPrice, null, bullish ? 0.60m : 0.40m, 1, signals, [], DateTimeOffset.UtcNow, "baseline-v1");
+        return new(symbol, bullish ? RecommendationAction.Buy : RecommendationAction.Hold, quote.LastTradedPrice, null, bullish ? 0.60m : 0.40m, 1, signals, [], now, "baseline-v1");
     }
 }
 
@@ -66,6 +81,8 @@ public sealed class RiskEngine
 {
     public RiskResult Evaluate(Recommendation recommendation, decimal availableCash, int quantity)
     {
+        if (recommendation.RiskFactors.Contains("STALE_OR_INVALID_MARKET_DATA"))
+            return new(RiskDecision.InsufficientData, "Market data is stale or invalid.");
         if (recommendation.Action == RecommendationAction.NoDecision) return new(RiskDecision.InsufficientData, "Recommendation does not contain enough data.");
         if (recommendation.Action != RecommendationAction.Buy) return new(RiskDecision.RiskBlocked, "Only BUY paper orders are enabled in V1.");
         if (quantity <= 0) return new(RiskDecision.RiskBlocked, "Order quantity must be positive.");
@@ -84,6 +101,7 @@ public sealed class PaperTradingService(RecommendationService recommendations, R
         var order = new PaperOrder(Guid.NewGuid(), symbol, OrderSide.Buy, quantity, recommendation.ReferencePrice, DateTimeOffset.UtcNow);
         var fill = await execution.ExecuteAsync(order, cancellationToken);
         portfolio.Apply(fill);
+        portfolio.UpdateMarketPrice(symbol, recommendation.ReferencePrice);
         return (riskResult, fill);
     }
 }
@@ -96,9 +114,11 @@ public sealed class RiskMonitor(IMarketDataProvider marketData, IPortfolio portf
         {
             if (position.StopLoss is null) continue;
             var quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
+            portfolio.UpdateMarketPrice(position.Symbol, quote.LastTradedPrice);
             if (quote.LastTradedPrice <= position.StopLoss)
             {
-                var key = $"{position.Id}:STOP_LOSS";
+                var bucket = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+                var key = $"{position.Id}:STOP_LOSS:{bucket}";
                 alerts.TryAdd(new Alert(key, AlertSeverity.High, $"Stop loss breached for {position.Symbol} at {quote.LastTradedPrice}.", DateTimeOffset.UtcNow, position.Symbol));
             }
         }
@@ -110,8 +130,17 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
     private decimal _cash = startingCash;
     private decimal _realized;
     private readonly Dictionary<Symbol, Position> _positions = new();
+    private readonly Dictionary<Symbol, decimal> _marketPrices = new();
 
-    public Portfolio Snapshot() => new(_cash, _positions.Values.ToArray(), 0, _realized);
+    public Portfolio Snapshot()
+    {
+        var unrealized = _positions.Values.Sum(position =>
+        {
+            var marketPrice = _marketPrices.GetValueOrDefault(position.Symbol, position.AverageEntryPrice);
+            return (marketPrice - position.AverageEntryPrice) * position.Quantity;
+        });
+        return new(_cash, _positions.Values.ToArray(), unrealized, _realized);
+    }
 
     public void Apply(Fill fill)
     {
@@ -127,6 +156,7 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
                 _positions[fill.Symbol] = existing with { Quantity = quantity, AverageEntryPrice = average };
             }
             else _positions[fill.Symbol] = new(Guid.NewGuid(), fill.Symbol, fill.Quantity, fill.Price, null);
+            _marketPrices[fill.Symbol] = fill.Price;
         }
         else
         {
@@ -135,7 +165,11 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
             _cash += value;
             _realized += (fill.Price - position.AverageEntryPrice) * fill.Quantity;
             var remaining = position.Quantity - fill.Quantity;
-            if (remaining == 0) _positions.Remove(fill.Symbol);
+            if (remaining == 0)
+            {
+                _positions.Remove(fill.Symbol);
+                _marketPrices.Remove(fill.Symbol);
+            }
             else _positions[fill.Symbol] = position with { Quantity = remaining };
         }
     }
@@ -145,5 +179,10 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
         var match = _positions.FirstOrDefault(x => x.Value.Id == positionId);
         if (match.Value is null) throw new KeyNotFoundException("Position not found.");
         _positions[match.Key] = match.Value with { StopLoss = stopLoss };
+    }
+
+    public void UpdateMarketPrice(Symbol symbol, decimal price)
+    {
+        if (_positions.ContainsKey(symbol)) _marketPrices[symbol] = price;
     }
 }

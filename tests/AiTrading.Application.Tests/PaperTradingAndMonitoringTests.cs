@@ -21,6 +21,18 @@ public class PaperTradingAndMonitoringTests
     }
 
     [Fact]
+    public void Unrealized_Pnl_Tracks_Market_Price()
+    {
+        var symbol = new Symbol("TCS", "123");
+        var portfolio = new PaperPortfolio(10000m);
+        portfolio.Apply(new Fill(Guid.NewGuid(), symbol, OrderSide.Buy, 2, 100m, DateTimeOffset.UtcNow, "test"));
+
+        portfolio.UpdateMarketPrice(symbol, 112.50m);
+
+        Assert.Equal(25m, portfolio.Snapshot().UnrealizedPnl);
+    }
+
+    [Fact]
     public async Task Stop_Loss_Alert_Is_Idempotent()
     {
         var symbol = new Symbol("TCS", "123");

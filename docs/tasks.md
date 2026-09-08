@@ -26,6 +26,7 @@ This checklist is the living delivery plan for the approved V1 vertical slice. B
 - [x] Add realized P&L calculations.
 - [x] Add order/fill audit domain records.
 - [x] Add unit tests for accounting invariants.
+- [x] Verify blocked recommendations never reach execution.
 
 ## Milestone C — market integration
 
@@ -33,8 +34,10 @@ This checklist is the living delivery plan for the approved V1 vertical slice. B
 - [x] Add SmartAPI HTTP client.
 - [x] Add normalized quote/candle mapping.
 - [x] Add deterministic demo provider for development/testing.
-- [ ] Add recorded Angel One fixture tests.
+- [x] Add recorded Angel One fixture tests.
 - [x] Add provider failure validation and required-token handling.
+- [x] Preserve provider exchange timestamp as market-data provenance.
+- [x] Prevent stale/invalid market data from becoming executable.
 
 ## Milestone D — API and monitoring
 
@@ -42,17 +45,21 @@ This checklist is the living delivery plan for the approved V1 vertical slice. B
 - [x] Add portfolio/alert query endpoints.
 - [x] Add monitoring worker.
 - [x] Add idempotent stop-loss alert generation.
+- [x] Use position/rule/evaluation-minute bucket for stop-loss alert identity.
 - [x] Add worker/monitoring tests.
 - [x] Add health endpoint.
+- [x] Verify stable API JSON contracts.
+- [x] Add correlation context to worker error logs without credentials.
 
 ## Milestone E — CI and review
 
 - [x] Add GitHub Actions build/test workflow.
+- [x] Consolidate duplicate build/test workflows.
 - [x] Verify no secrets are committed and live execution is unavailable.
 - [x] Add provider-neutral AI gateway boundary.
-- [ ] Run CI successfully against the latest commit.
-- [ ] Review implementation against all specification acceptance criteria.
-- [ ] Fix review findings.
+- [ ] Run CI successfully against the final review branch commit.
+- [ ] Review implementation against all specification acceptance criteria after CI is green.
+- [ ] Fix any remaining review findings.
 - [ ] Request explicit merge approval before merging feature work to `main`.
 
 ## Follow-on specifications
