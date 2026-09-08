@@ -7,7 +7,6 @@ public interface IPaperTradeService
     Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken);
 }
 
-/// <summary>Durable paper execution boundary. IdempotencyKey identifies one client execution attempt.</summary>
 public sealed class DurablePaperTradingService(
     RecommendationService recommendations,
     RiskEngine risk,
@@ -79,5 +78,14 @@ public sealed class DurablePortfolioQueryService(ITradingUnitOfWorkFactory unitO
         var domainPositions = positions.Select(x => new Position(x.Id, x.Symbol, x.Quantity, x.AverageEntryPrice, x.StopLoss)).ToArray();
         var unrealized = positions.Sum(x => (x.CurrentMarketPrice - x.AverageEntryPrice) * x.Quantity);
         return new Portfolio(state.Cash, domainPositions, unrealized, state.RealizedPnl);
+    }
+}
+
+public sealed class DurableAlertQueryService(ITradingUnitOfWorkFactory unitOfWorkFactory)
+{
+    public async Task<IReadOnlyList<AlertState>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
+        return await unitOfWork.Alerts.GetAllAsync(cancellationToken);
     }
 }
