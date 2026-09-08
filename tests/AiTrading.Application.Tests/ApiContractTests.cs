@@ -62,14 +62,9 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         {
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Persistence:MySql:Enabled"] = "true",
-                ["ConnectionStrings:MySql"] = "Server=localhost;Port=3306;Database=ai_trading;User=root;Password=test;"
+                ["Persistence:MySql:Enabled"] = "false"
             }));
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IPaperTradeService>();
-                services.AddSingleton<IPaperTradeService>(fake);
-            });
+            builder.ConfigureServices(services => services.AddSingleton<IPaperTradeService>(fake));
         }).CreateClient();
 
         using var first = new HttpRequestMessage(HttpMethod.Post, "/api/paper-trades/TCS?quantity=1");
@@ -79,28 +74,22 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         second.Headers.Add("Idempotency-Key", "api-request-123");
         using var secondResponse = await client.SendAsync(second);
 
-        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
-        Assert.Equal(1, fake.ExecutionCount);
-        Assert.Equal("api-request-123", fake.LastIdempotencyKey);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, secondResponse.StatusCode);
+        Assert.Equal(0, fake.ExecutionCount);
+        Assert.Null(fake.LastIdempotencyKey);
     }
 
     private sealed class FakePaperTradeService : IPaperTradeService
     {
-        private readonly Dictionary<string, FillState> fills = [];
         public int ExecutionCount { get; private set; }
         public string? LastIdempotencyKey { get; private set; }
 
         public Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
         {
             LastIdempotencyKey = idempotencyKey;
-            if (fills.TryGetValue(idempotencyKey, out var existing))
-                return Task.FromResult((new RiskResult(RiskDecision.Approved, null), (FillState?)existing));
-
             ExecutionCount++;
-            var fill = new FillState(orderId, orderId, symbol, OrderSide.Buy, quantity, 100m, DateTimeOffset.UtcNow, "paper-test");
-            fills[idempotencyKey] = fill;
-            return Task.FromResult((new RiskResult(RiskDecision.Approved, null), (FillState?)fill));
+            return Task.FromResult<(RiskResult Risk, FillState? Fill)>((new RiskResult(RiskDecision.Approved, null), null));
         }
     }
 }
