@@ -13,6 +13,11 @@ public interface IPaperExecutionProvider
     Task<Fill> ExecuteAsync(PaperOrder order, CancellationToken cancellationToken);
 }
 
+public interface IPaperTradeService
+{
+    Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken);
+}
+
 public interface IPortfolio
 {
     Portfolio Snapshot();

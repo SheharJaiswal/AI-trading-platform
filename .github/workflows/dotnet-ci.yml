@@ -9,6 +9,21 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: ai_trading_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ptest"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      AI_TRADING_MYSQL_CONNECTION: Server=127.0.0.1;Port=3306;Database=ai_trading_test;User=root;Password=test;
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
