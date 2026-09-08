@@ -35,6 +35,25 @@ public sealed class BacktestingTests
         Assert.True(costs.EndingCash <= noCost.EndingCash); if (costs.Trades.Count > 0) Assert.True(costs.Trades[0].Price > noCost.Trades[0].Price);
     }
 
+    [Theory]
+    [InlineData(0, 1, 0, 0)]
+    [InlineData(10_000, 0, 0, 0)]
+    [InlineData(10_000, 1, -0.01, 0)]
+    [InlineData(10_000, 1, 1.01, 0)]
+    [InlineData(10_000, 1, 0, -1)]
+    [InlineData(10_000, 1, 0, 10001)]
+    public void Run_rejects_invalid_configuration(decimal cash, int quantity, decimal fee, decimal slippage)
+    {
+        Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(cash, quantity, fee, slippage)));
+    }
+
+    [Fact]
+    public void Run_marks_every_result_as_simulation_only()
+    {
+        var result = Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, 0m, 0m));
+        Assert.True(result.SimulationOnly);
+    }
+
     private static DeterministicBacktestEngine Engine() => new(new DeterministicRecommendationEngine(), new RiskEngine());
     private static IReadOnlyList<HistoricalCandle> BuildCandles() { var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero); return Enumerable.Range(0, 25).Select(i => new HistoricalCandle(new Symbol("TEST", "1"), "1d", start.AddDays(i), 100 + i, 102 + i, 99 + i, 101 + i, 1000 + i, "fixture", start.AddDays(i).AddMinutes(1))).ToArray(); }
 }
