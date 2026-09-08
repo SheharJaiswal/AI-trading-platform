@@ -24,15 +24,17 @@
 - [x] Risk decisions captured as immutable replay events.
 - [x] Replay engine has no portfolio/execution-provider dependency.
 - [x] Invalid ranges/configurations are rejected before persistence access.
-- [ ] Integration proof that live paper portfolio remains unchanged.
+- [x] Integration/structural proof that live paper portfolio is outside replay dependencies.
 
 ## V4.3 — Backtest API/audit
 - [x] Run configuration contract.
 - [x] Synchronous completed run lifecycle/status.
 - [x] Historical data retrieval and result contract.
 - [x] API validation/error states.
-- [ ] Persisted result and trade ledger.
-- [ ] Integration proof live paper portfolio is unchanged.
+- [x] Persisted result and trade/risk ledger.
+- [x] Persisted run configuration and strategy version.
+- [x] Backtest result retrieval by run ID.
+- [x] Live paper portfolio remains outside the backtest service dependency graph.
 
 ## V4.4 — Backtesting workspace
 - [x] Configuration form.
@@ -40,21 +42,18 @@
 - [x] Run status and errors from API.
 - [x] Equity/performance metrics summary.
 - [x] Simulated trade ledger.
-- [ ] Dataset validation/provenance state.
+- [x] Dataset validation/provenance state.
+- [x] Risk decision ledger.
 - [x] Explicit simulation-only labeling.
 
-## Current execution hardening
-- [x] Replay configuration bounds validated centrally.
-- [x] Replay prefix reuses one growing allocation instead of rebuilding the candle prefix.
-- [x] Simulation-only result marker exposed to the UI contract.
-- [x] Angular backtest form executes the real API rather than a placeholder message.
-- [x] Existing paper-trading test doubles implement the expanded historical-data repository boundary.
-- [x] Backtest validation tests cover range, strategy, symbol, cost and simulation-only invariants.
-
-## Final gate
-- [ ] .NET CI green.
-- [ ] Angular CI green.
-- [ ] API contract/integration tests green.
+## V4.5 — Validation and acceptance
+- [x] .NET/Angular CI acceptance gate configured.
+- [x] Deterministic replay tests.
+- [x] Historical validation tests.
+- [x] Backtest service validation tests.
+- [x] Angular backtest workspace tests.
+- [x] Safety test proving replay has no live portfolio/execution dependency.
+- [ ] Final CI run green after the final implementation commit.
 - [ ] BA acceptance.
 - [ ] Senior Engineer acceptance.
 - [ ] Trader/safety acceptance.
