@@ -4,7 +4,6 @@ using AiTrading.Application;
 using AiTrading.Domain;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -60,12 +59,9 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         var fake = new FakePaperTradeService();
         using var client = factory.WithWebHostBuilder(builder =>
         {
-            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Persistence:MySql:Enabled"] = "true",
-                ["ConnectionStrings:MySql"] = "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;",
-                ["Trading:PortfolioId"] = "00000000-0000-0000-0000-000000000001"
-            }));
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+            builder.UseSetting("Trading:PortfolioId", "00000000-0000-0000-0000-000000000001");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<IPaperTradeService>();
