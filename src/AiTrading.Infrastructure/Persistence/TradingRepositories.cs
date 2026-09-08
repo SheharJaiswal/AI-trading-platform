@@ -13,7 +13,7 @@ internal static class PersistenceMapping
     public static FillState ToState(this FillRecord r) => new(r.Id, r.OrderId, new Symbol(r.Symbol), Enum.Parse<OrderSide>(r.Side, true), r.Quantity, r.FillPrice, r.FilledAt, r.ExecutionProvider);
     public static AlertState ToState(this AlertRecord r) => new(r.Id, r.PositionId, string.IsNullOrWhiteSpace(r.Symbol) ? null : new Symbol(r.Symbol), r.Rule, Enum.Parse<AlertSeverity>(r.Severity, true), r.Message, r.EvaluationBucket, r.CreatedAt);
     public static MarketDataSnapshotState ToState(this MarketDataSnapshotRecord r) => new(r.Id, new Symbol(r.Symbol, r.InstrumentToken), r.InstrumentToken, r.Provider, r.Exchange, r.ProviderTimestamp, r.ReceivedAt, r.Open, r.High, r.Low, r.Close, r.LastTradedPrice, r.Volume);
-    public static HistoricalCandleState ToState(this HistoricalCandleRecord r) => new(r.Id, new Symbol(r.Symbol, r.InstrumentToken), r.Interval, r.Timestamp, r.Open, r.High, r.Low, r.Close, r.Volume, r.Source, r.ReceivedAt);
+    public static HistoricalCandleState ToState(this HistoricalCandleRecord r) => new(r.Id, new Symbol(r.Symbol, string.IsNullOrEmpty(r.InstrumentToken) ? null : r.InstrumentToken), r.Interval, r.Timestamp, r.Open, r.High, r.Low, r.Close, r.Volume, r.Source, r.ReceivedAt);
 }
 
 public sealed class EfPortfolioRepository(TradingDbContext db) : IPortfolioRepository
@@ -48,7 +48,7 @@ public sealed class EfMarketDataSnapshotRepository(TradingDbContext db) : IMarke
 
 public sealed class EfHistoricalCandleRepository(TradingDbContext db) : IHistoricalCandleRepository
 {
-    public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken ct) { foreach (var c in candles) db.HistoricalCandles.Add(new HistoricalCandleRecord { Id=c.Id, Symbol=c.Symbol.Value, InstrumentToken=c.InstrumentToken ?? c.Symbol.InstrumentToken, Interval=c.Interval, Timestamp=c.Timestamp, Open=c.Open, High=c.High, Low=c.Low, Close=c.Close, Volume=c.Volume, Source=c.Source, ReceivedAt=c.ReceivedAt }); return Task.CompletedTask; }
+    public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken ct) { foreach (var c in candles) db.HistoricalCandles.Add(new HistoricalCandleRecord { Id=c.Id, Symbol=c.Symbol.Value, InstrumentToken=c.Symbol.InstrumentToken ?? string.Empty, Interval=c.Interval, Timestamp=c.Timestamp, Open=c.Open, High=c.High, Low=c.Low, Close=c.Close, Volume=c.Volume, Source=c.Source, ReceivedAt=c.ReceivedAt }); return Task.CompletedTask; }
     public async Task<IReadOnlyList<HistoricalCandleState>> GetRangeAsync(Symbol symbol, string interval, DateTimeOffset start, DateTimeOffset end, CancellationToken ct) => await db.HistoricalCandles.AsNoTracking().Where(x => x.Symbol == symbol.Value && x.Interval == interval && x.Timestamp >= start && x.Timestamp <= end).OrderBy(x => x.Timestamp).Select(x => x.ToState()).ToListAsync(ct);
 }
 
