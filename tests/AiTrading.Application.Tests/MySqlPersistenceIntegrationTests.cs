@@ -32,8 +32,19 @@ public sealed class MySqlPersistenceIntegrationTests
     public async Task MySql_Enforces_StopLoss_Alert_Uniqueness()
     {
         await using var db = await CreateMigratedContextAsync();
+        var portfolioId = Guid.NewGuid();
         var positionId = Guid.NewGuid();
         var bucket = "integration-bucket";
+        var now = DateTimeOffset.UtcNow;
+
+        db.Portfolios.Add(new PortfolioRecord { Id = portfolioId, Cash = 100_000m, RealizedPnl = 0m, UpdatedAt = now, Version = 1 });
+        db.Positions.Add(new PositionRecord
+        {
+            Id = positionId, PortfolioId = portfolioId, Symbol = "TCS", InstrumentToken = "11536",
+            Quantity = 10, AverageEntryPrice = 100m, CurrentMarketPrice = 100m, StopLoss = 95m,
+            OpenedAt = now, UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
 
         db.Alerts.Add(CreateAlert(Guid.NewGuid(), positionId, bucket));
         await db.SaveChangesAsync();
