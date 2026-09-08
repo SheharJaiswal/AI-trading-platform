@@ -30,7 +30,7 @@ public class TechnicalAnalysisTests
     [Fact]
     public void Hammer_Is_Detected()
     {
-        var candles = new[] { new Candle(DateTimeOffset.UtcNow, 100m, 101m, 90m, 100m, 1000) };
+        var candles = new[] { new Candle(DateTimeOffset.UtcNow, 100m, 102m, 90m, 101m, 1000) };
         var result = CandlestickAnalysis.Detect(candles);
         Assert.Contains(result, x => x.Name == "Hammer" && x.Bullish);
     }
@@ -38,7 +38,7 @@ public class TechnicalAnalysisTests
     [Fact]
     public void Shooting_Star_Is_Detected()
     {
-        var candles = new[] { new Candle(DateTimeOffset.UtcNow, 100m, 110m, 99m, 100m, 1000) };
+        var candles = new[] { new Candle(DateTimeOffset.UtcNow, 101m, 110m, 99m, 100m, 1000) };
         var result = CandlestickAnalysis.Detect(candles);
         Assert.Contains(result, x => x.Name == "Shooting Star" && !x.Bullish);
     }
