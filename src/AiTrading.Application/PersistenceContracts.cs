@@ -69,6 +69,22 @@ public sealed record MarketDataSnapshotState(
     decimal LastTradedPrice,
     long Volume);
 
+public sealed record HistoricalCandleState(
+    Guid Id,
+    Symbol Symbol,
+    string Interval,
+    DateTimeOffset Timestamp,
+    decimal Open,
+    decimal High,
+    decimal Low,
+    decimal Close,
+    long Volume,
+    string Source,
+    DateTimeOffset ReceivedAt)
+{
+    public HistoricalCandle ToDomain() => new(Symbol, Interval, Timestamp, Open, High, Low, Close, Volume, Source, ReceivedAt);
+}
+
 public interface IPortfolioRepository
 {
     Task<PortfolioState?> GetAsync(Guid portfolioId, CancellationToken cancellationToken);
@@ -99,12 +115,19 @@ public interface IMarketDataSnapshotRepository
     Task<MarketDataSnapshotState?> GetLatestAsync(Symbol symbol, CancellationToken cancellationToken);
 }
 
+public interface IHistoricalCandleRepository
+{
+    Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken cancellationToken);
+    Task<IReadOnlyList<HistoricalCandleState>> GetRangeAsync(Symbol symbol, string interval, DateTimeOffset start, DateTimeOffset end, CancellationToken cancellationToken);
+}
+
 public interface ITradingUnitOfWork : IAsyncDisposable
 {
     IPortfolioRepository Portfolios { get; }
     IOrderRepository Orders { get; }
     IAlertRepository Alerts { get; }
     IMarketDataSnapshotRepository MarketDataSnapshots { get; }
+    IHistoricalCandleRepository HistoricalCandles { get; }
     Task CommitAsync(CancellationToken cancellationToken);
 }
 
