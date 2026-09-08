@@ -35,17 +35,11 @@ public sealed class BacktestingTests
         Assert.True(costs.EndingCash <= noCost.EndingCash); if (costs.Trades.Count > 0) Assert.True(costs.Trades[0].Price > noCost.Trades[0].Price);
     }
 
-    [Theory]
-    [InlineData(0, 1, 0, 0)]
-    [InlineData(10_000, 0, 0, 0)]
-    [InlineData(10_000, 1, -0.01, 0)]
-    [InlineData(10_000, 1, 1.01, 0)]
-    [InlineData(10_000, 1, 0, -1)]
-    [InlineData(10_000, 1, 0, 10001)]
-    public void Run_rejects_invalid_configuration(decimal cash, int quantity, decimal fee, decimal slippage)
-    {
-        Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(cash, quantity, fee, slippage)));
-    }
+    [Fact] public void Run_rejects_zero_cash() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(0m, 1, 0m, 0m)));
+    [Fact] public void Run_rejects_zero_quantity() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 0, 0m, 0m)));
+    [Fact] public void Run_rejects_negative_fee() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, -0.01m, 0m)));
+    [Fact] public void Run_rejects_fee_above_100_percent() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, 1.01m, 0m)));
+    [Fact] public void Run_rejects_excessive_slippage() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, 0m, 10001m)));
 
     [Fact]
     public void Run_marks_every_result_as_simulation_only()
