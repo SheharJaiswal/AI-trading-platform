@@ -58,6 +58,20 @@ export interface Recommendation {
   [key: string]: unknown;
 }
 
+export interface AiResearchRequest {
+  symbol: string;
+  question: string;
+  evidence: string[];
+}
+
+export interface AiResearchResult {
+  provider: string;
+  summary: string;
+  risks: string[];
+  confidence: number;
+  generatedAt: string;
+}
+
 export interface ApiError {
   errorCode?: string;
   message?: string;
