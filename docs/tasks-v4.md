@@ -24,7 +24,7 @@
 - [x] Risk decisions captured as immutable replay events.
 - [x] Replay engine has no portfolio/execution-provider dependency.
 - [x] Invalid ranges/configurations are rejected before persistence access.
-- [x] Integration/structural proof that live paper portfolio is outside replay dependencies.
+- [x] Structural safety proof that live paper portfolio is outside replay dependencies.
 
 ## V4.3 — Backtest API/audit
 - [x] Run configuration contract.
@@ -47,7 +47,7 @@
 - [x] Explicit simulation-only labeling.
 
 ## V4.5 — Validation and acceptance
-- [x] .NET/Angular CI acceptance gate configured.
+- [x] Combined .NET + Angular CI acceptance gate configured.
 - [x] Deterministic replay tests.
 - [x] Historical validation tests.
 - [x] Backtest service validation tests.
@@ -58,3 +58,5 @@
 - [ ] Senior Engineer acceptance.
 - [ ] Trader/safety acceptance.
 - [ ] Explicit merge approval.
+
+Implementation is complete; these final boxes are release-gate evidence, not unfinished V4 product functionality.
