@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TradingApiService } from './core/api/trading-api.service';
@@ -7,20 +7,80 @@ import { MarketQuote, Recommendation } from './core/api/trading-api.models';
 @Component({
   selector: 'app-research',
   standalone: true,
-  imports: [FormsModule, DatePipe, DecimalPipe, PercentPipe],
+  imports: [CommonModule, FormsModule],
   template: `
     <section class="workspace">
-      <div class="hero"><div><p class="eyebrow">MARKET RESEARCH</p><h1>Research a symbol.</h1><p class="muted">Deterministic quote, technical evidence and recommendation in one view. AI advisory research stays separate.</p></div><span class="paper">PAPER TRADING ONLY</span></div>
-      <form class="search" (ngSubmit)="load()"><label for="symbol">Symbol</label><input id="symbol" name="symbol" [(ngModel)]="symbol" placeholder="e.g. RELIANCE" autocomplete="off" /><button type="submit" [disabled]="loading">{{ loading ? 'Loading…' : 'Research' }}</button></form>
-      @if (error) { <div class="notice error-box">{{ error }}</div> }
-      @if (loading) { <div class="notice">Loading quote and recommendation…</div> }
-      @if (quote) {
-        <article class="panel"><div class="panel-heading"><div><p class="eyebrow">MARKET QUOTE</p><h2>{{ quote.symbol }}</h2></div><span class="muted">{{ quote.source }}</span></div><div class="quote"><strong>{{ quote.lastTradedPrice | number:'1.2-2' }}</strong><span>Latest traded price</span></div><div class="ohlc"><span>Open <b>{{ quote.open | number:'1.2-2' }}</b></span><span>High <b>{{ quote.high | number:'1.2-2' }}</b></span><span>Low <b>{{ quote.low | number:'1.2-2' }}</b></span><span>Volume <b>{{ quote.volume | number:'1.0-0' }}</b></span></div><p class="freshness">Observed: {{ quote.timestamp | date:'medium' }}</p></article>
+      <div class="hero">
+        <div>
+          <p class="eyebrow">MARKET RESEARCH</p>
+          <h1>Research a symbol.</h1>
+          <p class="muted">Deterministic quote, technical evidence and recommendation in one view. AI advisory research stays separate.</p>
+        </div>
+        <span class="paper">PAPER TRADING ONLY</span>
+      </div>
+
+      <form class="search" (ngSubmit)="load()">
+        <label for="symbol">Symbol</label>
+        <input id="symbol" name="symbol" [(ngModel)]="symbol" placeholder="e.g. RELIANCE" autocomplete="off" />
+        <button type="submit" [disabled]="loading">{{ loading ? 'Loading…' : 'Research' }}</button>
+      </form>
+
+      @if (error) {
+        <div class="notice error-box">{{ error }}</div>
       }
-      @if (recommendation) {
-        <article class="panel recommendation"><div class="panel-heading"><div><p class="eyebrow">DETERMINISTIC RECOMMENDATION</p><h2>{{ recommendation.action }}</h2></div><span class="confidence">{{ recommendation.confidence | percent:'1.0-1' }} confidence</span></div><div class="facts"><span>Horizon <b>{{ recommendation.horizonDays }} day{{ recommendation.horizonDays === 1 ? '' : 's' }}</b></span><span>Strategy <b>{{ recommendation.strategyVersion }}</b></span><span>Reference <b>{{ recommendation.referencePrice | number:'1.2-2' }}</b></span></div>@if (recommendation.expectedReturn !== null && recommendation.expectedReturn !== undefined) { <p>Expected return: <strong>{{ recommendation.expectedReturn | percent:'1.1-1' }}</strong></p> }<h3>Supporting signals</h3>@if (recommendation.supportingSignals.length) { <ul>@for (signal of recommendation.supportingSignals; track signal) { <li>{{ signal }}</li> }</ul> } @else { <div class="empty">No supporting signals were produced.</div> }<h3>Risk factors</h3>@if (recommendation.riskFactors.length) { <ul>@for (risk of recommendation.riskFactors; track risk) { <li>{{ risk }}</li> }</ul> } @else { <div class="empty">No recommendation risk factors were returned.</div> }</article>
+      @if (loading) {
+        <div class="notice">Loading quote and recommendation…</div>
       }
-      @if (!loading && !error && !quote && !recommendation) { <div class="empty panel">Enter a symbol to load current research data.</div> }
+
+      @if (quote; as currentQuote) {
+        <article class="panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">MARKET QUOTE</p><h2>{{ currentQuote.symbol }}</h2></div>
+            <span class="muted">{{ currentQuote.source }}</span>
+          </div>
+          <div class="quote"><strong>{{ currentQuote.lastTradedPrice | number:'1.2-2' }}</strong><span>Latest traded price</span></div>
+          <div class="ohlc">
+            <span>Open <b>{{ currentQuote.open | number:'1.2-2' }}</b></span>
+            <span>High <b>{{ currentQuote.high | number:'1.2-2' }}</b></span>
+            <span>Low <b>{{ currentQuote.low | number:'1.2-2' }}</b></span>
+            <span>Volume <b>{{ currentQuote.volume | number:'1.0-0' }}</b></span>
+          </div>
+          <p class="freshness">Observed: {{ currentQuote.timestamp | date:'medium' }}</p>
+        </article>
+      }
+
+      @if (recommendation; as currentRecommendation) {
+        <article class="panel recommendation">
+          <div class="panel-heading">
+            <div><p class="eyebrow">DETERMINISTIC RECOMMENDATION</p><h2>{{ currentRecommendation.action }}</h2></div>
+            <span class="confidence">{{ currentRecommendation.confidence | percent:'1.0-1' }} confidence</span>
+          </div>
+          <div class="facts">
+            <span>Horizon <b>{{ currentRecommendation.horizonDays }} day{{ currentRecommendation.horizonDays === 1 ? '' : 's' }}</b></span>
+            <span>Strategy <b>{{ currentRecommendation.strategyVersion }}</b></span>
+            <span>Reference <b>{{ currentRecommendation.referencePrice | number:'1.2-2' }}</b></span>
+          </div>
+          @if (currentRecommendation.expectedReturn !== undefined && currentRecommendation.expectedReturn !== null) {
+            <p>Expected return: <strong>{{ currentRecommendation.expectedReturn | percent:'1.1-1' }}</strong></p>
+          }
+          <h3>Supporting signals</h3>
+          @if (currentRecommendation.supportingSignals.length > 0) {
+            <ul>@for (signal of currentRecommendation.supportingSignals; track signal) { <li>{{ signal }}</li> }</ul>
+          } @else {
+            <div class="empty">No supporting signals were produced.</div>
+          }
+          <h3>Risk factors</h3>
+          @if (currentRecommendation.riskFactors.length > 0) {
+            <ul>@for (risk of currentRecommendation.riskFactors; track risk) { <li>{{ risk }}</li> }</ul>
+          } @else {
+            <div class="empty">No recommendation risk factors were returned.</div>
+          }
+        </article>
+      }
+
+      @if (!loading && !error && !quote && !recommendation) {
+        <div class="empty panel">Enter a symbol to load current research data.</div>
+      }
       <div class="safety"><strong>Advisory boundary.</strong> This workspace does not authorize trades. Any paper-trade submission must pass the server-side deterministic risk gate.</div>
     </section>
   `,
@@ -36,11 +96,30 @@ export class ResearchComponent {
 
   load(): void {
     const requested = this.symbol.trim().toUpperCase();
-    if (!requested) { this.error = 'Enter a symbol before researching.'; return; }
-    this.symbol = requested; this.quote = undefined; this.recommendation = undefined; this.error = ''; this.loading = true;
+    if (!requested) {
+      this.error = 'Enter a symbol before researching.';
+      return;
+    }
+
+    this.symbol = requested;
+    this.quote = undefined;
+    this.recommendation = undefined;
+    this.error = '';
+    this.loading = true;
     let completed = 0;
-    const finish = () => { completed++; if (completed === 2) this.loading = false; };
-    this.api.quote(requested).subscribe({ next: value => { this.quote = value; finish(); }, error: () => { this.error ||= 'Market quote could not be loaded. Data is not assumed to be fresh.'; finish(); } });
-    this.api.recommendation(requested).subscribe({ next: value => { this.recommendation = value; finish(); }, error: () => { this.error ||= 'Recommendation could not be loaded. Review the symbol or provider status.'; finish(); } });
+    const finish = () => {
+      completed += 1;
+      if (completed === 2) this.loading = false;
+    };
+
+    this.api.quote(requested).subscribe({
+      next: value => { this.quote = value; finish(); },
+      error: () => { if (!this.error) this.error = 'Market quote could not be loaded. Data is not assumed to be fresh.'; finish(); }
+    });
+
+    this.api.recommendation(requested).subscribe({
+      next: value => { this.recommendation = value; finish(); },
+      error: () => { if (!this.error) this.error = 'Recommendation could not be loaded. Review the symbol or provider status.'; finish(); }
+    });
   }
 }
