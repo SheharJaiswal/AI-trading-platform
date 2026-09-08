@@ -18,7 +18,11 @@ internal static class PersistenceMapping
 public sealed class EfPortfolioRepository(TradingDbContext db) : IPortfolioRepository
 {
     public async Task<PortfolioState?> GetAsync(Guid id, CancellationToken ct) => await db.Portfolios.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct) is { } r ? r.ToState() : null;
-    public async Task<IReadOnlyList<PositionState>> GetOpenPositionsAsync(Guid portfolioId, CancellationToken ct) => await db.Positions.AsNoTracking().Where(x => x.PortfolioId == portfolioId && x.Quantity > 0).OrderBy(x => x.Symbol).Select(x => x.ToState()).ToListAsync(ct);
+    public async Task<IReadOnlyList<PositionState>> GetOpenPositionsAsync(Guid portfolioId, CancellationToken ct)
+    {
+        var records = await db.Positions.AsNoTracking().Where(x => x.PortfolioId == portfolioId && x.Quantity > 0).OrderBy(x => x.Symbol).ToListAsync(ct);
+        return records.Select(x => x.ToState()).ToList();
+    }
     public async Task SaveAsync(PortfolioState p, long expectedVersion, CancellationToken ct)
     {
         var r = await db.Portfolios.SingleOrDefaultAsync(x => x.Id == p.Id, ct);
@@ -56,7 +60,11 @@ public sealed class EfAlertRepository(TradingDbContext db) : IAlertRepository
         db.Alerts.Add(new AlertRecord { Id=a.Id, PositionId=a.PositionId, Symbol=a.Symbol?.Value, Rule=a.Rule, Severity=a.Severity.ToString(), Message=a.Message, EvaluationBucket=a.EvaluationBucket, CreatedAt=a.CreatedAt });
         return true;
     }
-    public async Task<IReadOnlyList<AlertState>> GetAllAsync(CancellationToken ct) => await db.Alerts.AsNoTracking().OrderByDescending(x => x.CreatedAt).Select(x => x.ToState()).ToListAsync(ct);
+    public async Task<IReadOnlyList<AlertState>> GetAllAsync(CancellationToken ct)
+    {
+        var records = await db.Alerts.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+        return records.Select(x => x.ToState()).ToList();
+    }
 }
 
 public sealed class EfMarketDataSnapshotRepository(TradingDbContext db) : IMarketDataSnapshotRepository
