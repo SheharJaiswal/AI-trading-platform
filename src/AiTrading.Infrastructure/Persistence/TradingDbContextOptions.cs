@@ -17,7 +17,7 @@ public static class TradingPersistenceServiceCollectionExtensions
         services.AddDbContextFactory<TradingDbContext>(options =>
             options.UseMySql(connectionString, serverVersion, mySql =>
                 mySql.MigrationsAssembly(typeof(TradingDbContext).Assembly.GetName().Name)));
-        services.AddScoped<ITradingUnitOfWorkFactory, EfTradingUnitOfWorkFactory>();
+        services.AddSingleton<ITradingUnitOfWorkFactory, EfTradingUnitOfWorkFactory>();
 
         return services;
     }
