@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AiResearchRequest, AiResearchResult, AlertSnapshot, HealthStatus, MarketQuote, PortfolioSnapshot, Recommendation } from './trading-api.models';
+import { AiResearchRequest, AiResearchResult, AlertSnapshot, HealthStatus, MarketQuote, PaperTradeResult, PortfolioSnapshot, Recommendation } from './trading-api.models';
 
 @Injectable({ providedIn: 'root' })
 export class TradingApiService {
@@ -30,5 +30,13 @@ export class TradingApiService {
 
   aiResearch(request: AiResearchRequest): Observable<AiResearchResult> {
     return this.http.post<AiResearchResult>(`${this.baseUrl}/api/ai/research`, request);
+  }
+
+  paperTrade(symbol: string, quantity: number, idempotencyKey: string): Observable<PaperTradeResult> {
+    return this.http.post<PaperTradeResult>(
+      `${this.baseUrl}/api/paper-trades/${encodeURIComponent(symbol)}?quantity=${encodeURIComponent(quantity)}`,
+      null,
+      { headers: { 'Idempotency-Key': idempotencyKey } }
+    );
   }
 }
