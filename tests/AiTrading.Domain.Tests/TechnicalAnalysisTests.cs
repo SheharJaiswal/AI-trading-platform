@@ -1,4 +1,5 @@
 using AiTrading.Domain;
+using Xunit;
 
 namespace AiTrading.Domain.Tests;
 
