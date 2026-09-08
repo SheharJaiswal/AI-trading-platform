@@ -66,7 +66,11 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
                 ["ConnectionStrings:MySql"] = "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;",
                 ["Trading:PortfolioId"] = "00000000-0000-0000-0000-000000000001"
             }));
-            builder.ConfigureServices(services => services.AddSingleton<IPaperTradeService>(fake));
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IPaperTradeService>();
+                services.AddSingleton<IPaperTradeService>(fake);
+            });
         }).CreateClient();
 
         using var first = new HttpRequestMessage(HttpMethod.Post, "/api/paper-trades/TCS?quantity=1");
