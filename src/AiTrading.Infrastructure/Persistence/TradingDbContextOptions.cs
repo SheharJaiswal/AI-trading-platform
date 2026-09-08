@@ -12,8 +12,9 @@ public static class TradingPersistenceServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("ConnectionStrings:MySql is required when MySQL persistence is enabled.");
 
-        services.AddDbContext<TradingDbContext>(options =>
+        services.AddDbContextFactory<TradingDbContext>(options =>
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+        services.AddScoped<ITradingUnitOfWorkFactory, EfTradingUnitOfWorkFactory>();
 
         return services;
     }
