@@ -1,22 +1,12 @@
 using AiTrading.Domain;
-
 namespace AiTrading.Application;
-
-public sealed record BacktestRunRequest(Symbol Symbol, string Interval, DateTimeOffset Start, DateTimeOffset End, BacktestConfiguration Configuration);
-public sealed record BacktestRunResponse(string Status, BacktestResult Result, string SimulationLabel);
-public interface IBacktestService { Task<BacktestRunResponse> RunAsync(BacktestRunRequest request, CancellationToken cancellationToken); }
-public sealed class BacktestService(ITradingUnitOfWorkFactory unitOfWorkFactory, DeterministicBacktestEngine engine) : IBacktestService
+public sealed record BacktestRunRequest(Symbol Symbol,string Interval,DateTimeOffset Start,DateTimeOffset End,BacktestConfiguration Configuration);
+public sealed record BacktestRunResponse(Guid RunId,string Status,BacktestResult Result,string SimulationLabel);
+public interface IBacktestService { Task<BacktestRunResponse> RunAsync(BacktestRunRequest request,CancellationToken cancellationToken); Task<BacktestRunResponse?> GetAsync(Guid runId,CancellationToken cancellationToken); }
+public sealed class BacktestService(ITradingUnitOfWorkFactory factory,DeterministicBacktestEngine engine):IBacktestService
 {
-    public async Task<BacktestRunResponse> RunAsync(BacktestRunRequest request, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.Symbol.Value)) throw new ArgumentException("Symbol is required.", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.Interval)) throw new ArgumentException("Interval is required.", nameof(request));
-        if (request.End < request.Start) throw new ArgumentException("End must be on or after Start.", nameof(request));
-        if (request.Configuration.StrategyVersion != "baseline-v1") throw new ArgumentException("Unsupported strategy version.", nameof(request));
-        await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
-        var states = await unitOfWork.HistoricalCandles.GetRangeAsync(request.Symbol, request.Interval, request.Start, request.End, cancellationToken);
-        var candles = states.Select(x => x.ToDomain()).ToArray();
-        if (candles.Length == 0) throw new InvalidOperationException("No historical data is available for the requested range.");
-        return new("completed", engine.Run(request.Symbol, candles, request.Configuration), "HISTORICAL_SIMULATION_ONLY");
-    }
+ public async Task<BacktestRunResponse> RunAsync(BacktestRunRequest request,CancellationToken ct){Validate(request);await using var uow=await factory.CreateAsync(ct);var states=await uow.HistoricalCandles.GetRangeAsync(request.Symbol,request.Interval,request.Start,request.End,ct);var candles=states.Select(x=>x.ToDomain()).ToArray();ValidateDataset(candles,request);var result=engine.Run(request.Symbol,candles,request.Configuration);var id=Guid.NewGuid();await uow.BacktestRuns.AddAsync(new BacktestRunState(id,request.Symbol,request.Interval,request.Start,request.End,request.Configuration,result,DateTimeOffset.UtcNow),ct);await uow.CommitAsync(ct);return new(id,"completed",result,"HISTORICAL_SIMULATION_ONLY");}
+ public async Task<BacktestRunResponse?> GetAsync(Guid id,CancellationToken ct){await using var uow=await factory.CreateAsync(ct);var run=await uow.BacktestRuns.GetAsync(id,ct);return run is null?null:new(run.Id,"completed",run.Result,"HISTORICAL_SIMULATION_ONLY");}
+ private static void Validate(BacktestRunRequest r){if(string.IsNullOrWhiteSpace(r.Symbol.Value))throw new ArgumentException("Symbol is required.",nameof(r));if(string.IsNullOrWhiteSpace(r.Interval))throw new ArgumentException("Interval is required.",nameof(r));if(r.End<=r.Start)throw new ArgumentException("End must be after Start.",nameof(r));if(r.Configuration.StrategyVersion!="baseline-v1")throw new ArgumentException("Unsupported strategy version.",nameof(r));}
+ private static void ValidateDataset(IReadOnlyList<HistoricalCandle> candles,BacktestRunRequest r){if(candles.Count==0)throw new InvalidOperationException("No historical data is available for the requested range.");if(candles.Any(x=>x.Symbol!=r.Symbol))throw new InvalidOperationException("Historical dataset contains a symbol mismatch.");if(candles.Zip(candles.Skip(1),(a,b)=>(a,b)).Any(p=>p.a.Timestamp>=p.b.Timestamp))throw new InvalidOperationException("Historical dataset contains duplicate or out-of-order timestamps.");if(candles.Any(x=>x.Open<=0||x.High<=0||x.Low<=0||x.Close<=0||x.High<x.Low))throw new InvalidOperationException("Historical dataset contains invalid OHLC values.");}
 }
