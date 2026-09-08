@@ -42,6 +42,11 @@ public sealed class MonitoringWorker(
 
             await RunIterationAsync(stoppingToken);
 
+            if (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+
             try
             {
                 await delay.DelayAsync(options.Interval, stoppingToken);
