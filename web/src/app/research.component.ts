@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TradingApiService } from './core/api/trading-api.service';
@@ -7,7 +7,7 @@ import { MarketQuote, Recommendation } from './core/api/trading-api.models';
 @Component({
   selector: 'app-research',
   standalone: true,
-  imports: [FormsModule, DatePipe, DecimalPipe],
+  imports: [FormsModule, DatePipe, DecimalPipe, PercentPipe],
   template: `
     <section class="workspace">
       <div class="hero">
