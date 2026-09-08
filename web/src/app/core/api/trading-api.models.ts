@@ -31,16 +31,30 @@ export interface AlertSnapshot {
 
 export interface MarketQuote {
   symbol: string;
-  price: number;
-  timestamp?: string;
-  provider?: string;
+  exchange: string;
+  instrumentToken: string;
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  lastTradedPrice: number;
+  volume: number;
+  source: string;
   [key: string]: unknown;
 }
 
 export interface Recommendation {
-  decision: string;
-  reason?: string;
-  confidence?: number;
+  symbol: string;
+  action: 'Buy' | 'Hold' | 'Sell' | 'NoDecision' | string;
+  referencePrice: number;
+  expectedReturn?: number;
+  confidence: number;
+  horizonDays: number;
+  supportingSignals: string[];
+  riskFactors: string[];
+  generatedAt: string;
+  strategyVersion: string;
   [key: string]: unknown;
 }
 
