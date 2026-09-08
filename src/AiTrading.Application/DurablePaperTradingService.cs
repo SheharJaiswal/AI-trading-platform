@@ -36,7 +36,7 @@ public sealed class DurablePaperTradingService(
         var fill = await execution.ExecuteAsync(order, cancellationToken);
         var now = DateTimeOffset.UtcNow;
         var orderState = new OrderState(order.Id, idempotencyKey, order.Symbol, order.Symbol.InstrumentToken, order.Side, order.Quantity, order.LimitPrice, recommendation.StrategyVersion, order.CreatedAt, "paper", "filled");
-        var fillState = new FillState(fill.Id, fill.OrderId, fill.Symbol, fill.Side, fill.Quantity, fill.Price, fill.Timestamp, "paper");
+        var fillState = new FillState(order.Id, fill.OrderId, fill.Symbol, fill.Side, fill.Quantity, fill.Price, fill.Timestamp, "paper");
         await unitOfWork.Orders.AddAsync(orderState, cancellationToken);
         await unitOfWork.Orders.AddFillAsync(fillState, cancellationToken);
 
