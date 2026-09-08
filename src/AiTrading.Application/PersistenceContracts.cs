@@ -23,6 +23,7 @@ public sealed record PositionState(
 
 public sealed record OrderState(
     Guid Id,
+    string IdempotencyKey,
     Symbol Symbol,
     string? InstrumentToken,
     OrderSide Side,
@@ -80,6 +81,7 @@ public interface IPortfolioRepository
 public interface IOrderRepository
 {
     Task<OrderState?> GetAsync(Guid orderId, CancellationToken cancellationToken);
+    Task<OrderState?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken);
     Task AddAsync(OrderState order, CancellationToken cancellationToken);
     Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken);
     Task AddFillAsync(FillState fill, CancellationToken cancellationToken);
