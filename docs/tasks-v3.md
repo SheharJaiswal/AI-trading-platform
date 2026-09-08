@@ -16,10 +16,10 @@
 
 ## V3.2 — Portfolio workspace
 
-- [ ] Durable portfolio summary.
-- [ ] Positions table/detail.
-- [ ] P&L presentation.
-- [ ] Alert center.
+- [x] Durable portfolio summary.
+- [x] Positions table/detail.
+- [x] P&L presentation.
+- [x] Alert center.
 
 ## V3.3 — Research workspace
 
