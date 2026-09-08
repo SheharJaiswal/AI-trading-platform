@@ -92,6 +92,61 @@ export interface PaperTradeResult {
   fill?: FillSnapshot | null;
 }
 
+export interface BacktestRequest {
+  symbol: { value: string; instrumentToken?: string | null };
+  interval: string;
+  start: string;
+  end: string;
+  configuration: {
+    startingCash: number;
+    quantityPerTrade: number;
+    feeRate: number;
+    slippageBasisPoints: number;
+    strategyVersion: string;
+  };
+}
+
+export interface BacktestTrade {
+  timestamp: string;
+  side: string;
+  quantity: number;
+  price: number;
+  fee: number;
+  riskDecision: string;
+  riskReason?: string | null;
+}
+
+export interface BacktestRiskEvent {
+  timestamp: string;
+  decision: string;
+  reason?: string | null;
+  availableCash: number;
+  requestedQuantity: number;
+}
+
+export interface BacktestEquityPoint {
+  timestamp: string;
+  cash: number;
+  positionValue: number;
+  equity: number;
+}
+
+export interface BacktestResult {
+  startingCash: number;
+  endingCash: number;
+  returnPercent: number;
+  maxDrawdownPercent: number;
+  trades: BacktestTrade[];
+  equityCurve: BacktestEquityPoint[];
+  riskEvents: BacktestRiskEvent[];
+}
+
+export interface BacktestResponse {
+  status: string;
+  result: BacktestResult;
+  simulationLabel: string;
+}
+
 export interface ApiError {
   errorCode?: string;
   message?: string;
