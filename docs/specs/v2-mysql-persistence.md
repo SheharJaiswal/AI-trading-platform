@@ -170,4 +170,4 @@ V2 is complete only when the MySQL schema and migrations are committed, reposito
 
 ## Implementation decision
 
-Use EF Core with the Pomelo MySQL provider in Infrastructure. The provider currently supports use with `net10.0`; package compatibility and release status must be verified by CI before merge. citeturn0search6turn0search5
+Use EF Core with the Pomelo MySQL provider in Infrastructure. Provider compatibility must be verified by CI before merge.
