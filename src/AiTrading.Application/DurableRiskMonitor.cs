@@ -18,17 +18,34 @@ public sealed class DurableRiskMonitor(
             if (position.StopLoss is null) continue;
 
             var quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
+            var receivedAt = DateTimeOffset.UtcNow;
             var updated = position with
             {
                 CurrentMarketPrice = quote.LastTradedPrice,
-                UpdatedAt = DateTimeOffset.UtcNow
+                UpdatedAt = receivedAt
             };
             await unitOfWork.Portfolios.SavePositionAsync(updated, cancellationToken);
+            await unitOfWork.MarketDataSnapshots.AddAsync(
+                new MarketDataSnapshotState(
+                    Guid.NewGuid(),
+                    quote.Symbol,
+                    quote.InstrumentToken,
+                    quote.Source,
+                    quote.Exchange,
+                    quote.Timestamp,
+                    receivedAt,
+                    quote.Open,
+                    quote.High,
+                    quote.Low,
+                    quote.Close,
+                    quote.LastTradedPrice,
+                    quote.Volume),
+                cancellationToken);
             changed = true;
 
             if (quote.LastTradedPrice <= position.StopLoss)
             {
-                var bucket = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+                var bucket = receivedAt.ToUnixTimeSeconds() / 60;
                 var alert = new AlertState(
                     Guid.NewGuid(),
                     position.Id,
@@ -37,7 +54,7 @@ public sealed class DurableRiskMonitor(
                     AlertSeverity.High,
                     $"Stop loss breached for {position.Symbol} at {quote.LastTradedPrice}.",
                     bucket.ToString(),
-                    DateTimeOffset.UtcNow);
+                    receivedAt);
                 if (await unitOfWork.Alerts.TryAddAsync(alert, cancellationToken))
                     changed = true;
             }
