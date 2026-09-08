@@ -9,10 +9,10 @@
 
 ## V4.1 — Historical data
 
-- [ ] Typed OHLCV candle contract.
-- [ ] Provenance/source metadata.
-- [ ] MySQL migration and repository.
-- [ ] Duplicate and ordering validation.
+- [x] Typed OHLCV candle contract.
+- [x] Provenance/source metadata.
+- [x] MySQL migration and repository.
+- [x] Duplicate and ordering validation.
 - [ ] Deterministic local dataset import.
 
 ## V4.2 — Replay engine
