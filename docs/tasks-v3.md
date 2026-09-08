@@ -12,7 +12,7 @@
 - [x] Routing and responsive layout.
 - [x] Typed API client.
 - [x] Health/error/loading states.
-- [ ] Angular CI build/test (CI build added; test remains pending).
+- [x] Angular CI build/test configuration and dashboard state coverage.
 
 ## V3.2 — Portfolio workspace
 
