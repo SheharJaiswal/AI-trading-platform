@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace AiTrading.Infrastructure.Persistence.Migrations;
 
+[Migration("202609080001_InitialTradingPersistence")]
 public partial class InitialTradingPersistence : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
