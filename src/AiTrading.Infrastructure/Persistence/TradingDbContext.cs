@@ -35,7 +35,7 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options)
         });
         modelBuilder.Entity<PositionRecord>(entity =>
         {
-            entity.ToTable("positions"); entity.HasKey(x => x.Id); entity.Property(x => x.Id).HasColumnType("char(36)"); entity.Property(x => x.PortfolioId).HasColumnType("char(36");
+            entity.ToTable("positions"); entity.HasKey(x => x.Id); entity.Property(x => x.Id).HasColumnType("char(36)"); entity.Property(x => x.PortfolioId).HasColumnType("char(36)");
             entity.Property(x => x.Symbol).HasMaxLength(100).IsRequired(); entity.Property(x => x.InstrumentToken).HasMaxLength(100); entity.Property(x => x.AverageEntryPrice).HasPrecision(20, 4); entity.Property(x => x.CurrentMarketPrice).HasPrecision(20, 4); entity.Property(x => x.StopLoss).HasPrecision(20, 4);
             entity.HasIndex(x => new { x.PortfolioId, x.Symbol }).IsUnique(); entity.HasOne<PortfolioRecord>().WithMany().HasForeignKey(x => x.PortfolioId).OnDelete(DeleteBehavior.Cascade);
         });
