@@ -33,9 +33,8 @@ public sealed class DurablePaperTradingService(
         }
 
         var now = DateTimeOffset.UtcNow;
-        var portfolio = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
-        var isNewPortfolio = portfolio is null;
-        portfolio ??= new PortfolioState(portfolioId, startingCash, 0m, now, 0);
+        var portfolio = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken)
+            ?? new PortfolioState(portfolioId, startingCash, 0m, now, 0);
 
         var recommendation = await recommendations.GetRecommendationAsync(symbol, cancellationToken);
         var riskResult = risk.Evaluate(recommendation, portfolio.Cash, quantity);
@@ -65,7 +64,6 @@ public sealed class DurablePaperTradingService(
 
         await unitOfWork.Portfolios.SaveAsync(portfolio with { Cash = portfolio.Cash - fillValue, UpdatedAt = now }, portfolio.Version, cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
-        _ = isNewPortfolio;
         return (riskResult, fillState);
     }
 }
@@ -78,9 +76,7 @@ public sealed class DurablePortfolioQueryService(ITradingUnitOfWorkFactory unitO
         var state = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
         if (state is null) return null;
         var positions = await unitOfWork.Portfolios.GetOpenPositionsAsync(portfolioId, cancellationToken);
-        var domainPositions = positions
-            .Select(x => new Position(x.Id, x.Symbol, x.Quantity, x.AverageEntryPrice, x.StopLoss))
-            .ToArray();
+        var domainPositions = positions.Select(x => new Position(x.Id, x.Symbol, x.Quantity, x.AverageEntryPrice, x.StopLoss)).ToArray();
         var unrealized = positions.Sum(x => (x.CurrentMarketPrice - x.AverageEntryPrice) * x.Quantity);
         return new Portfolio(state.Cash, domainPositions, unrealized, state.RealizedPnl);
     }
