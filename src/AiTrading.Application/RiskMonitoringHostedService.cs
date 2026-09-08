@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 namespace AiTrading.Application;
 
 public sealed class RiskMonitoringHostedService(ILogger<RiskMonitoringHostedService> logger, RiskMonitor monitor) : BackgroundService
