@@ -15,11 +15,7 @@ public sealed class DurablePaperTradingServiceTests
         var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, DateTimeOffset.UtcNow, 1));
         unitOfWork.OrdersStore.Add(new OrderState(orderId, "request-123", symbol, "123", OrderSide.Buy, 1, 100m, "baseline-v1", DateTimeOffset.UtcNow, "paper", "filled"), fill);
         var execution = new CountingExecution();
-        var service = new DurablePaperTradingService(
-            new RecommendationService(new FakeMarketData()),
-            new RiskEngine(),
-            execution,
-            new FakeUnitOfWorkFactory(unitOfWork));
+        var service = CreateService(unitOfWork, execution);
 
         var result = await service.ExecuteAsync(portfolioId, orderId, "request-123", symbol, 1, CancellationToken.None);
 
@@ -39,13 +35,8 @@ public sealed class DurablePaperTradingServiceTests
         unitOfWork.OrdersStore.Add(
             new OrderState(firstOrderId, "request-123", symbol, "123", OrderSide.Buy, 1, 100m, "baseline-v1", DateTimeOffset.UtcNow, "paper", "filled"),
             new FillState(Guid.NewGuid(), firstOrderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper"));
-        var service = new DurablePaperTradingService(
-            new RecommendationService(new FakeMarketData()),
-            new RiskEngine(),
-            new CountingExecution(),
-            new FakeUnitOfWorkFactory(unitOfWork));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService(unitOfWork, new CountingExecution()).ExecuteAsync(
             portfolioId, secondOrderId, "request-123", symbol, 1, CancellationToken.None));
     }
 
@@ -59,15 +50,13 @@ public sealed class DurablePaperTradingServiceTests
         unitOfWork.OrdersStore.Add(
             new OrderState(orderId, "request-123", symbol, "123", OrderSide.Buy, 1, 100m, "baseline-v1", DateTimeOffset.UtcNow, "paper", "created"),
             null);
-        var service = new DurablePaperTradingService(
-            new RecommendationService(new FakeMarketData()),
-            new RiskEngine(),
-            new CountingExecution(),
-            new FakeUnitOfWorkFactory(unitOfWork));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService(unitOfWork, new CountingExecution()).ExecuteAsync(
             portfolioId, orderId, "request-123", symbol, 1, CancellationToken.None));
     }
+
+    private static DurablePaperTradingService CreateService(FakeUnitOfWork unitOfWork, CountingExecution execution) =>
+        new(new RecommendationService(new FakeMarketData()), new RiskEngine(), execution, new FakeUnitOfWorkFactory(unitOfWork), 10_000m);
 
     private sealed class CountingExecution : IPaperExecutionProvider
     {
@@ -82,7 +71,7 @@ public sealed class DurablePaperTradingServiceTests
     private sealed class FakeMarketData : IMarketDataProvider
     {
         public Task<MarketQuote> GetQuoteAsync(Symbol symbol, CancellationToken cancellationToken) =>
-            Task.FromResult(new MarketQuote(symbol, "NSE", symbol.InstrumentToken, DateTimeOffset.UtcNow, 100, 101, 99, 100, 100, 1000, "test"));
+            Task.FromResult(new MarketQuote(symbol, "NSE", symbol.InstrumentToken ?? "123", DateTimeOffset.UtcNow, 100, 101, 99, 100, 100, 1000, "test"));
 
         public Task<IReadOnlyList<Candle>> GetCandlesAsync(Symbol symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<Candle>>([]);
