@@ -8,128 +8,19 @@ public partial class InitialTradingPersistence : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.CreateTable(
-            name: "portfolios",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                Cash = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                RealizedPnl = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                Version = table.Column<long>(type: "bigint", nullable: false)
-            },
-            constraints: table => table.PrimaryKey("PK_portfolios", x => x.Id));
-
-        migrationBuilder.CreateTable(
-            name: "orders",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true),
-                Side = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false),
-                Quantity = table.Column<int>(type: "int", nullable: false),
-                LimitPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                StrategyVersion = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false),
-                CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                ExecutionMode = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false),
-                Status = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false)
-            },
-            constraints: table => table.PrimaryKey("PK_orders", x => x.Id));
-
-        migrationBuilder.CreateTable(
-            name: "market_data_snapshots",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true),
-                Provider = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false),
-                Exchange = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false),
-                ProviderTimestamp = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                ReceivedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                Open = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                High = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                Low = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                Close = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                LastTradedPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                Volume = table.Column<long>(type: "bigint", nullable: false)
-            },
-            constraints: table => table.PrimaryKey("PK_market_data_snapshots", x => x.Id));
-
-        migrationBuilder.CreateTable(
-            name: "fills",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                OrderId = table.Column<Guid>(type: "char(36)", nullable: false),
-                Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                Side = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false),
-                Quantity = table.Column<int>(type: "int", nullable: false),
-                FillPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                FilledAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                ExecutionProvider = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_fills", x => x.Id);
-                table.ForeignKey("FK_fills_orders_OrderId", x => x.OrderId, "orders", "Id", onDelete: ReferentialAction.Restrict);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "positions",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                PortfolioId = table.Column<Guid>(type: "char(36)", nullable: false),
-                Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true),
-                Quantity = table.Column<int>(type: "int", nullable: false),
-                AverageEntryPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                CurrentMarketPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
-                StopLoss = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: true),
-                OpenedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
-                UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_positions", x => x.Id);
-                table.ForeignKey("FK_positions_portfolios_PortfolioId", x => x.PortfolioId, "portfolios", "Id", onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "alerts",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                PositionId = table.Column<Guid>(type: "char(36)", nullable: true),
-                Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true),
-                Rule = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false),
-                Severity = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false),
-                Message = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false),
-                EvaluationBucket = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false),
-                CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_alerts", x => x.Id);
-                table.ForeignKey("FK_alerts_positions_PositionId", x => x.PositionId, "positions", "Id", onDelete: ReferentialAction.SetNull);
-            });
-
+        migrationBuilder.CreateTable(name: "portfolios", columns: table => new { Id = table.Column<Guid>(type: "char(36)", nullable: false), Cash = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), RealizedPnl = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false), Version = table.Column<long>(type: "bigint", nullable: false) }, constraints: table => table.PrimaryKey("PK_portfolios", x => x.Id));
+        migrationBuilder.CreateTable(name: "orders", columns: table => new { Id = table.Column<Guid>(type: "char(36)", nullable: false), IdempotencyKey = table.Column<string>(type: "varchar(128)", maxLength: 128, nullable: false), Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false), InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true), Side = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false), Quantity = table.Column<int>(type: "int", nullable: false), LimitPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), StrategyVersion = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false), CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false), ExecutionMode = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false), Status = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false) }, constraints: table => table.PrimaryKey("PK_orders", x => x.Id));
+        migrationBuilder.CreateTable(name: "market_data_snapshots", columns: table => new { Id = table.Column<Guid>(type: "char(36)", nullable: false), Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false), InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true), Provider = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false), Exchange = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false), ProviderTimestamp = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false), ReceivedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false), Open = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), High = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), Low = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), Close = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), LastTradedPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), Volume = table.Column<long>(type: "bigint", nullable: false) }, constraints: table => table.PrimaryKey("PK_market_data_snapshots", x => x.Id));
+        migrationBuilder.CreateTable(name: "fills", columns: table => new { Id = table.Column<Guid>(type: "char(36)", nullable: false), OrderId = table.Column<Guid>(type: "char(36)", nullable: false), Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false), Side = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false), Quantity = table.Column<int>(type: "int", nullable: false), FillPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), FilledAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false), ExecutionProvider = table.Column<string>(type: "varchar(32)", maxLength: 32, nullable: false) }, constraints: table => { table.PrimaryKey("PK_fills", x => x.Id); table.ForeignKey("FK_fills_orders_OrderId", x => x.OrderId, "orders", "Id", onDelete: ReferentialAction.Restrict); });
+        migrationBuilder.CreateTable(name: "positions", columns: table => new { Id = table.Column<Guid>(type: "char(36)", nullable: false), PortfolioId = table.Column<Guid>(type: "char(36)", nullable: false), Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false), InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true), Quantity = table.Column<int>(type: "int", nullable: false), AverageEntryPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), CurrentMarketPrice = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false), StopLoss = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: true), OpenedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false), UpdatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false) }, constraints: table => { table.PrimaryKey("PK_positions", x => x.Id); table.ForeignKey("FK_positions_portfolios_PortfolioId", x => x.PortfolioId, "portfolios", "Id", onDelete: ReferentialAction.Cascade); });
+        migrationBuilder.CreateTable(name: "alerts", columns: table => new { Id = table.Column<Guid>(type: "char(36)", nullable: false), PositionId = table.Column<Guid>(type: "char(36)", nullable: true), Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true), Rule = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false), Severity = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false), Message = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false), EvaluationBucket = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false), CreatedAt = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false) }, constraints: table => { table.PrimaryKey("PK_alerts", x => x.Id); table.ForeignKey("FK_alerts_positions_PositionId", x => x.PositionId, "positions", "Id", onDelete: ReferentialAction.SetNull); });
         migrationBuilder.CreateIndex(name: "IX_alerts_PositionId_Rule_EvaluationBucket", table: "alerts", columns: new[] { "PositionId", "Rule", "EvaluationBucket" }, unique: true);
         migrationBuilder.CreateIndex(name: "IX_fills_OrderId", table: "fills", column: "OrderId", unique: true);
         migrationBuilder.CreateIndex(name: "IX_market_data_snapshots_Symbol_ProviderTimestamp", table: "market_data_snapshots", columns: new[] { "Symbol", "ProviderTimestamp" });
         migrationBuilder.CreateIndex(name: "IX_positions_PortfolioId_Symbol", table: "positions", columns: new[] { "PortfolioId", "Symbol" }, unique: true);
         migrationBuilder.CreateIndex(name: "IX_portfolios_Version", table: "portfolios", column: "Version");
+        migrationBuilder.CreateIndex(name: "IX_orders_IdempotencyKey", table: "orders", column: "IdempotencyKey", unique: true);
     }
 
-    protected override void Down(MigrationBuilder migrationBuilder)
-    {
-        migrationBuilder.DropTable(name: "alerts");
-        migrationBuilder.DropTable(name: "fills");
-        migrationBuilder.DropTable(name: "market_data_snapshots");
-        migrationBuilder.DropTable(name: "positions");
-        migrationBuilder.DropTable(name: "orders");
-        migrationBuilder.DropTable(name: "portfolios");
-    }
+    protected override void Down(MigrationBuilder migrationBuilder) { migrationBuilder.DropTable(name: "alerts"); migrationBuilder.DropTable(name: "fills"); migrationBuilder.DropTable(name: "market_data_snapshots"); migrationBuilder.DropTable(name: "positions"); migrationBuilder.DropTable(name: "orders"); migrationBuilder.DropTable(name: "portfolios"); }
 }
