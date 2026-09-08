@@ -1,13 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { TradingApiService } from './core/api/trading-api.service';
 import { MarketQuote, Recommendation } from './core/api/trading-api.models';
 
 @Component({
   selector: 'app-research',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   template: `
     <section class="workspace">
       <div class="hero">
@@ -19,9 +18,9 @@ import { MarketQuote, Recommendation } from './core/api/trading-api.models';
         <span class="paper">PAPER TRADING ONLY</span>
       </div>
 
-      <form class="search" (ngSubmit)="load()">
+      <form class="search" (submit)="submit($event)">
         <label for="symbol">Symbol</label>
-        <input id="symbol" name="symbol" [(ngModel)]="symbol" placeholder="e.g. RELIANCE" autocomplete="off" />
+        <input id="symbol" name="symbol" [value]="symbol" (input)="onSymbolInput($event)" placeholder="e.g. RELIANCE" autocomplete="off" />
         <button type="submit" [disabled]="loading">{{ loading ? 'Loading…' : 'Research' }}</button>
       </form>
 
@@ -93,6 +92,15 @@ export class ResearchComponent {
   recommendation?: Recommendation;
   loading = false;
   error = '';
+
+  onSymbolInput(event: Event): void {
+    this.symbol = (event.target as HTMLInputElement).value;
+  }
+
+  submit(event: Event): void {
+    event.preventDefault();
+    this.load();
+  }
 
   load(): void {
     const requested = this.symbol.trim().toUpperCase();
