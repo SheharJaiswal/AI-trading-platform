@@ -28,7 +28,27 @@ else
     builder.Services.AddSingleton<IMarketDataProvider, DemoMarketDataProvider>();
 }
 
-builder.Services.AddSingleton<IAiProvider, DisabledAiProvider>();
+var aiProvider = builder.Configuration["AI:Provider"]?.Trim().ToLowerInvariant() ?? "disabled";
+if (aiProvider is not ("disabled" or "local" or "cloud"))
+    throw new InvalidOperationException("AI:Provider must be one of: disabled, local, cloud.");
+if (aiProvider == "disabled")
+{
+    builder.Services.AddSingleton<IAiProvider, DisabledAiProvider>();
+}
+else
+{
+    var aiOptions = new AiProviderOptions
+    {
+        Provider = aiProvider,
+        Endpoint = builder.Configuration[$"AI:{aiProvider}:Endpoint"]?.Trim() ?? "",
+        ApiKey = builder.Configuration[$"AI:{aiProvider}:ApiKey"] ?? "",
+        TimeoutSeconds = builder.Configuration.GetValue<int?>($"AI:{aiProvider}:TimeoutSeconds") ?? 30
+    };
+    if (aiOptions.TimeoutSeconds <= 0) throw new InvalidOperationException($"AI:{aiProvider}:TimeoutSeconds must be positive.");
+    builder.Services.AddSingleton(aiOptions);
+    builder.Services.AddHttpClient<IAiProvider, ConfigurableAiProvider>(client => client.Timeout = TimeSpan.FromSeconds(aiOptions.TimeoutSeconds));
+}
+
 builder.Services.AddSingleton<RecommendationService>();
 builder.Services.AddSingleton<RiskEngine>();
 builder.Services.AddSingleton<IPaperExecutionProvider, InMemoryPaperExecutionProvider>();
@@ -61,7 +81,7 @@ var portfolioId = builder.Configuration.GetValue<Guid?>("Trading:PortfolioId") ?
 var app = builder.Build();
 app.MapOpenApi();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", mode = "paper", marketProvider, persistence = persistenceEnabled }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok", mode = "paper", marketProvider, aiProvider, persistence = persistenceEnabled }));
 app.MapGet("/api/market/{symbol}/quote", async (string symbol, string? instrumentToken, IMarketDataProvider provider, CancellationToken ct) =>
     Results.Ok(await provider.GetQuoteAsync(new Symbol(symbol.ToUpperInvariant(), instrumentToken), ct)));
 app.MapGet("/api/recommendations/{symbol}", async (string symbol, string? instrumentToken, RecommendationService service, CancellationToken ct) =>
