@@ -18,11 +18,11 @@
 
 ## Phase 2 — repository contracts
 
-- [ ] Portfolio repository.
-- [ ] Order/fill repository.
-- [ ] Alert repository.
-- [ ] Market-data snapshot repository.
-- [ ] Transaction boundary.
+- [x] Portfolio repository.
+- [x] Order/fill repository.
+- [x] Alert repository.
+- [x] Market-data snapshot repository.
+- [x] Transaction boundary.
 
 ## Phase 3 — durable paper trading
 
