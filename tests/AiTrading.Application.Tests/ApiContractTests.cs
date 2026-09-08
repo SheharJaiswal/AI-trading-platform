@@ -55,14 +55,16 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
-    public async Task PaperTrade_Preserves_Idempotency_Key_Contract()
+    public async Task PaperTrade_Uses_Stable_Order_Id_For_Idempotency_Key()
     {
         var fake = new FakePaperTradeService();
         using var client = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Persistence:MySql:Enabled"] = "false"
+                ["Persistence:MySql:Enabled"] = "true",
+                ["ConnectionStrings:MySql"] = "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;",
+                ["Trading:PortfolioId"] = "00000000-0000-0000-0000-000000000001"
             }));
             builder.ConfigureServices(services => services.AddSingleton<IPaperTradeService>(fake));
         }).CreateClient();
@@ -74,19 +76,25 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         second.Headers.Add("Idempotency-Key", "api-request-123");
         using var secondResponse = await client.SendAsync(second);
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, firstResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, secondResponse.StatusCode);
-        Assert.Equal(0, fake.ExecutionCount);
-        Assert.Null(fake.LastIdempotencyKey);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.Equal(2, fake.ExecutionCount);
+        Assert.Equal("api-request-123", fake.LastIdempotencyKey);
+        Assert.NotNull(fake.FirstOrderId);
+        Assert.Equal(fake.FirstOrderId, fake.LastOrderId);
     }
 
     private sealed class FakePaperTradeService : IPaperTradeService
     {
         public int ExecutionCount { get; private set; }
         public string? LastIdempotencyKey { get; private set; }
+        public Guid? FirstOrderId { get; private set; }
+        public Guid? LastOrderId { get; private set; }
 
         public Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
         {
+            FirstOrderId ??= orderId;
+            LastOrderId = orderId;
             LastIdempotencyKey = idempotencyKey;
             ExecutionCount++;
             return Task.FromResult<(RiskResult Risk, FillState? Fill)>((new RiskResult(RiskDecision.Approved, null), null));
