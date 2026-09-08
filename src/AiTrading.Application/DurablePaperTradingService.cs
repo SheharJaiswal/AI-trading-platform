@@ -7,12 +7,15 @@ public sealed class DurablePaperTradingService(
     RecommendationService recommendations,
     RiskEngine risk,
     IPaperExecutionProvider execution,
-    ITradingUnitOfWorkFactory unitOfWorkFactory) : IPaperTradeService
+    ITradingUnitOfWorkFactory unitOfWorkFactory,
+    decimal startingCash) : IPaperTradeService
 {
     public async Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 128)
             throw new ArgumentException("A non-empty idempotency key of at most 128 characters is required.", nameof(idempotencyKey));
+        if (startingCash <= 0)
+            throw new InvalidOperationException("Starting cash must be positive.");
 
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
         var existingOrder = await unitOfWork.Orders.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
@@ -26,8 +29,13 @@ public sealed class DurablePaperTradingService(
             return (new(RiskDecision.Approved, null), existingFill);
         }
 
-        var portfolio = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken)
-            ?? throw new InvalidOperationException($"Portfolio {portfolioId} does not exist.");
+        var portfolio = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
+        if (portfolio is null)
+        {
+            portfolio = new PortfolioState(portfolioId, startingCash, 0m, DateTimeOffset.UtcNow, 0);
+            await unitOfWork.Portfolios.SaveAsync(portfolio, 0, cancellationToken);
+        }
+
         var recommendation = await recommendations.GetRecommendationAsync(symbol, cancellationToken);
         var riskResult = risk.Evaluate(recommendation, portfolio.Cash, quantity);
         if (riskResult.Decision != RiskDecision.Approved) return (riskResult, null);
