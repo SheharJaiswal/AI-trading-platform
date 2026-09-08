@@ -39,7 +39,7 @@ public class RecommendationServiceTests
         var quote = new MarketQuote(symbol, "NSE", "11536", DateTimeOffset.UtcNow, 100, 101, 99, 110, 110, 1000, "test");
         var candles = Enumerable.Range(0, 19)
             .Select(i => new Candle(DateTimeOffset.UtcNow.AddDays(-20 + i), 100, 101, 99, 100, 1000))
-            .Append(new Candle(DateTimeOffset.UtcNow.AddDays(-1), 100, 101, 90, 100, 1000))
+            .Append(new Candle(DateTimeOffset.UtcNow.AddDays(-1), 100, 102, 90, 101, 1000))
             .ToArray();
         var service = new RecommendationService(new FakeMarketData(quote, candles));
 
