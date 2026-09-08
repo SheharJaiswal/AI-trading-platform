@@ -145,7 +145,7 @@ public sealed class MySqlPersistenceIntegrationTests
         var alerts = await verify.Alerts.AsNoTracking().Where(x => x.PositionId == positionId && x.Rule == "STOP_LOSS").ToListAsync();
         Assert.Single(alerts);
         var snapshot = await verify.MarketDataSnapshots.AsNoTracking().SingleAsync(x => x.Symbol == "TCS" && x.Provider == "integration");
-        Assert.Equal(providerTimestamp, snapshot.ProviderTimestamp);
+        Assert.Equal(providerTimestamp.TruncateToMicroseconds(), snapshot.ProviderTimestamp);
         Assert.Equal(92m, snapshot.LastTradedPrice);
         Assert.Equal("NSE", snapshot.Exchange);
         Assert.Equal(10_000, snapshot.Volume);
@@ -187,4 +187,10 @@ public sealed class MySqlPersistenceIntegrationTests
     {
         public Task<ITradingUnitOfWork> CreateAsync(CancellationToken cancellationToken) => Task.FromResult<ITradingUnitOfWork>(new EfTradingUnitOfWork(new TradingDbContext(options)));
     }
+}
+
+internal static class DateTimeOffsetExtensions
+{
+    public static DateTimeOffset TruncateToMicroseconds(this DateTimeOffset value)
+        => new(value.Ticks - value.Ticks % 10, value.Offset);
 }
