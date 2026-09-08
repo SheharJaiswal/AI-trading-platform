@@ -48,6 +48,8 @@
 - [x] Replay prefix reuses one growing allocation instead of rebuilding the candle prefix.
 - [x] Simulation-only result marker exposed to the UI contract.
 - [x] Angular backtest form executes the real API rather than a placeholder message.
+- [x] Existing paper-trading test doubles implement the expanded historical-data repository boundary.
+- [x] Backtest validation tests cover range, strategy, symbol, cost and simulation-only invariants.
 
 ## Final gate
 - [ ] .NET CI green.
