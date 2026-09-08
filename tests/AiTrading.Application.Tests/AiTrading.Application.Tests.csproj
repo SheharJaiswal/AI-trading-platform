@@ -15,6 +15,7 @@
     <ProjectReference Include="..\..\src\AiTrading.Api\AiTrading.Api.csproj" />
     <ProjectReference Include="..\..\src\AiTrading.Application\AiTrading.Application.csproj" />
     <ProjectReference Include="..\..\src\AiTrading.Infrastructure\AiTrading.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\AiTrading.Worker\AiTrading.Worker.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
