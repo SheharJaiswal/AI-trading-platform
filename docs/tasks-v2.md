@@ -36,10 +36,12 @@
 
 ## Phase 4 — durable monitoring
 
-- [ ] Persist alerts.
-- [ ] Enforce database stop-loss uniqueness.
-- [ ] Restore alert state after restart.
-- [ ] Persist latest market price.
+- [x] Persist alerts.
+- [x] Enforce database stop-loss uniqueness.
+- [x] Restore alert state after restart.
+- [x] Persist latest market price.
+- [x] Wire durable monitoring into the background worker when MySQL persistence is enabled.
+- [x] Add MySQL integration coverage for stop-loss alert uniqueness and durable market-price updates.
 
 ## Phase 5 — market-data audit
 
@@ -48,7 +50,7 @@
 
 ## Final gate
 
-- [ ] MySQL integration tests.
+- [x] MySQL migration/schema integration tests.
 - [ ] CI green on final implementation commit.
 - [ ] BA/Senior Engineer/Trader acceptance review.
 - [ ] Explicit merge approval.
