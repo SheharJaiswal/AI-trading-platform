@@ -46,6 +46,7 @@ if (persistenceEnabled)
         services.GetRequiredService<ITradingUnitOfWorkFactory>(),
         startingCash));
     builder.Services.AddScoped<DurablePortfolioQueryService>();
+    builder.Services.AddScoped<DurableAlertQueryService>();
 }
 else
 {
@@ -67,12 +68,12 @@ app.MapGet("/api/recommendations/{symbol}", async (string symbol, string? instru
     Results.Ok(await service.GetRecommendationAsync(new Symbol(symbol.ToUpperInvariant(), instrumentToken), ct)));
 app.MapPost("/api/paper-trades/{symbol}", async (string symbol, string? instrumentToken, int quantity, HttpRequest request, IServiceProvider services, CancellationToken ct) =>
 {
-    if (!persistenceEnabled)
-        return Results.Json(new { errorCode = "PERSISTENCE_DISABLED", message = "Durable paper trading requires MySQL persistence to be enabled." }, statusCode: StatusCodes.Status503ServiceUnavailable);
     if (quantity <= 0)
         return Results.BadRequest(new { errorCode = "INVALID_QUANTITY", message = "quantity must be positive" });
     if (!request.Headers.TryGetValue("Idempotency-Key", out var header) || string.IsNullOrWhiteSpace(header.ToString()) || header.ToString().Length > 128)
         return Results.BadRequest(new { errorCode = "INVALID_IDEMPOTENCY_KEY", message = "Idempotency-Key is required and must be 1-128 characters." });
+    if (!persistenceEnabled)
+        return Results.Json(new { errorCode = "PERSISTENCE_DISABLED", message = "Durable paper trading requires MySQL persistence to be enabled." }, statusCode: StatusCodes.Status503ServiceUnavailable);
 
     var idempotencyKey = header.ToString();
     var orderId = DeterministicGuid(idempotencyKey);
@@ -105,11 +106,11 @@ app.MapGet("/api/portfolio", async (IServiceProvider services, CancellationToken
     var portfolio = await services.GetRequiredService<DurablePortfolioQueryService>().GetAsync(portfolioId, ct);
     return portfolio is null ? Results.NotFound(new { errorCode = "PORTFOLIO_NOT_FOUND", message = $"Portfolio {portfolioId} does not exist." }) : Results.Ok(portfolio);
 });
-app.MapGet("/api/alerts", (IServiceProvider services) =>
+app.MapGet("/api/alerts", async (IServiceProvider services, CancellationToken ct) =>
 {
     if (!persistenceEnabled)
         return Results.Ok(services.GetRequiredService<IAlertStore>().GetAll());
-    return Results.Ok(Array.Empty<AlertState>());
+    return Results.Ok(await services.GetRequiredService<DurableAlertQueryService>().GetAllAsync(ct));
 });
 
 app.Run();
