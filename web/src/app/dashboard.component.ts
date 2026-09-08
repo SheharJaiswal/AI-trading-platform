@@ -23,9 +23,9 @@ import { AlertSnapshot, HealthStatus, PortfolioSnapshot } from './core/api/tradi
     @if (!health && !error) { <div class="notice">Loading portfolio workspace…</div> }
 
     <div class="kpis">
-      <article><span>Available cash</span><strong>{{ portfolio?.cash ?? '—' | number:'1.2-2' }}</strong><small>Virtual funds</small></article>
-      <article><span>Unrealized P&amp;L</span><strong [class.positive]="(portfolio?.unrealizedPnl ?? 0) >= 0" [class.negative]="(portfolio?.unrealizedPnl ?? 0) < 0">{{ portfolio?.unrealizedPnl ?? '—' | number:'1.2-2' }}</strong><small>Open positions</small></article>
-      <article><span>Realized P&amp;L</span><strong>{{ portfolio?.realizedPnl ?? '—' | number:'1.2-2' }}</strong><small>Closed paper trades</small></article>
+      <article><span>Available cash</span><strong>{{ portfolio?.cash !== undefined ? (portfolio.cash | number:'1.2-2') : '—' }}</strong><small>Virtual funds</small></article>
+      <article><span>Unrealized P&amp;L</span><strong [class.positive]="(portfolio?.unrealizedPnl ?? 0) >= 0" [class.negative]="(portfolio?.unrealizedPnl ?? 0) < 0">{{ portfolio?.unrealizedPnl !== undefined ? (portfolio.unrealizedPnl | number:'1.2-2') : '—' }}</strong><small>Open positions</small></article>
+      <article><span>Realized P&amp;L</span><strong>{{ portfolio?.realizedPnl !== undefined ? (portfolio.realizedPnl | number:'1.2-2') : '—' }}</strong><small>Closed paper trades</small></article>
       <article><span>Open positions</span><strong>{{ portfolio?.positions?.length ?? '—' }}</strong><small>Persisted holdings</small></article>
     </div>
 
