@@ -97,7 +97,7 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
             LastOrderId = orderId;
             LastIdempotencyKey = idempotencyKey;
             ExecutionCount++;
-            return Task.FromResult<(RiskResult Risk, FillState? Fill)>((new RiskResult(RiskDecision.Approved, null), new FillState(orderId, symbol, quantity, 100m)));
+            return Task.FromResult<(RiskResult Risk, FillState? Fill)>((new RiskResult(RiskDecision.Approved, null), new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Buy, quantity, 100m, DateTimeOffset.UtcNow, "fake")));
         }
     }
 }
