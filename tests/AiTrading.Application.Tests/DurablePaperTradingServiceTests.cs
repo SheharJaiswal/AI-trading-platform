@@ -90,6 +90,7 @@ public sealed class DurablePaperTradingServiceTests
         public IOrderRepository Orders => OrdersStore;
         public IAlertRepository Alerts { get; } = new NoOpAlertRepository();
         public IMarketDataSnapshotRepository MarketDataSnapshots { get; } = new NoOpMarketDataRepository();
+        public IHistoricalCandleRepository HistoricalCandles { get; } = new NoOpHistoricalCandleRepository();
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
@@ -124,5 +125,11 @@ public sealed class DurablePaperTradingServiceTests
     {
         public Task AddAsync(MarketDataSnapshotState snapshot, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<MarketDataSnapshotState?> GetLatestAsync(Symbol symbol, CancellationToken cancellationToken) => Task.FromResult<MarketDataSnapshotState?>(null);
+    }
+
+    private sealed class NoOpHistoricalCandleRepository : IHistoricalCandleRepository
+    {
+        public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<HistoricalCandleState>> GetRangeAsync(Symbol symbol, string interval, DateTimeOffset start, DateTimeOffset end, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<HistoricalCandleState>>([]);
     }
 }
