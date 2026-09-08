@@ -1,9 +1,12 @@
+using AiTrading.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace AiTrading.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(TradingDbContext))]
 [Migration("202609080001_InitialTradingPersistence")]
 public partial class InitialTradingPersistence : Migration
 {
