@@ -26,6 +26,9 @@ jobs:
       AI_TRADING_MYSQL_CONNECTION: Server=127.0.0.1;Port=3306;Database=ai_trading_test;User=root;Password=test;
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -35,3 +38,12 @@ jobs:
         run: dotnet build AI-Trading-Platform.sln --configuration Release --no-restore
       - name: Test
         run: dotnet test AI-Trading-Platform.sln --configuration Release --no-build --verbosity normal
+      - name: Frontend install
+        working-directory: web
+        run: npm install
+      - name: Frontend build
+        working-directory: web
+        run: npm run build
+      - name: Frontend test
+        working-directory: web
+        run: npm test

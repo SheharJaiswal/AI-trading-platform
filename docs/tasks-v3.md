@@ -4,22 +4,22 @@
 
 - [x] V3 trading intelligence and dashboard specification.
 - [x] V3 scope preserves paper-only execution and deterministic risk authority.
-- [ ] V3 implementation branch created.
+- [x] V3 implementation branch created.
 
 ## V3.1 — Dashboard shell
 
-- [ ] Angular application shell.
-- [ ] Routing and responsive layout.
-- [ ] Typed API client.
-- [ ] Health/error/loading states.
-- [ ] Angular CI build/test.
+- [x] Angular application shell.
+- [x] Routing and responsive layout.
+- [x] Typed API client.
+- [x] Health/error/loading states.
+- [x] Angular CI build/test configuration and dashboard state coverage.
 
 ## V3.2 — Portfolio workspace
 
-- [ ] Durable portfolio summary.
-- [ ] Positions table/detail.
-- [ ] P&L presentation.
-- [ ] Alert center.
+- [x] Durable portfolio summary.
+- [x] Positions table/detail.
+- [x] P&L presentation.
+- [x] Alert center.
 
 ## V3.3 — Research workspace
 
@@ -47,7 +47,7 @@
 
 ## Final gate
 
-- [ ] .NET CI green.
+- [ ] .NET CI green on V3 branch.
 - [ ] Angular CI green.
 - [ ] API contract tests green.
 - [ ] BA acceptance.
