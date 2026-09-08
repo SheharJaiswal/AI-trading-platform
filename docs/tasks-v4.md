@@ -13,7 +13,8 @@
 - [x] Provenance/source metadata.
 - [x] MySQL migration and repository.
 - [x] Duplicate and ordering validation.
-- [ ] Deterministic local dataset import.
+- [x] Deterministic local CSV dataset import/parser with strict schema and invariant parsing.
+- [x] Stable historical candle identifiers and null-safe persistence identity.
 
 ## V4.2 — Replay engine
 
