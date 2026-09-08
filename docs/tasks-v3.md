@@ -23,11 +23,11 @@
 
 ## V3.3 — Research workspace
 
-- [ ] Symbol search/input.
-- [ ] Quote and freshness/provenance display.
-- [ ] Recommendation display.
-- [ ] Technical evidence display.
-- [ ] Explicit insufficient-data/stale-data states.
+- [x] Symbol search/input.
+- [x] Quote and freshness/provenance display.
+- [x] Recommendation display.
+- [x] Technical evidence display.
+- [x] Explicit insufficient-data/stale-data states.
 
 ## V3.4 — AI research boundary
 
