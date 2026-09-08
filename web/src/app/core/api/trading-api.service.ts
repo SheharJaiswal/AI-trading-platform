@@ -1,42 +1,21 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AiResearchRequest, AiResearchResult, AlertSnapshot, HealthStatus, MarketQuote, PaperTradeResult, PortfolioSnapshot, Recommendation } from './trading-api.models';
+import { AiResearchRequest, AiResearchResult, AlertSnapshot, BacktestRequest, BacktestResponse, HealthStatus, MarketQuote, PaperTradeResult, PortfolioSnapshot, Recommendation } from './trading-api.models';
 
 @Injectable({ providedIn: 'root' })
 export class TradingApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '';
 
-  health(): Observable<HealthStatus> {
-    return this.http.get<HealthStatus>(`${this.baseUrl}/health`);
-  }
-
-  portfolio(): Observable<PortfolioSnapshot> {
-    return this.http.get<PortfolioSnapshot>(`${this.baseUrl}/api/portfolio`);
-  }
-
-  alerts(): Observable<AlertSnapshot[]> {
-    return this.http.get<AlertSnapshot[]>(`${this.baseUrl}/api/alerts`);
-  }
-
-  quote(symbol: string): Observable<MarketQuote> {
-    return this.http.get<MarketQuote>(`${this.baseUrl}/api/market/${encodeURIComponent(symbol)}/quote`);
-  }
-
-  recommendation(symbol: string): Observable<Recommendation> {
-    return this.http.get<Recommendation>(`${this.baseUrl}/api/recommendations/${encodeURIComponent(symbol)}`);
-  }
-
-  aiResearch(request: AiResearchRequest): Observable<AiResearchResult> {
-    return this.http.post<AiResearchResult>(`${this.baseUrl}/api/ai/research`, request);
-  }
-
+  health(): Observable<HealthStatus> { return this.http.get<HealthStatus>(`${this.baseUrl}/health`); }
+  portfolio(): Observable<PortfolioSnapshot> { return this.http.get<PortfolioSnapshot>(`${this.baseUrl}/api/portfolio`); }
+  alerts(): Observable<AlertSnapshot[]> { return this.http.get<AlertSnapshot[]>(`${this.baseUrl}/api/alerts`); }
+  quote(symbol: string): Observable<MarketQuote> { return this.http.get<MarketQuote>(`${this.baseUrl}/api/market/${encodeURIComponent(symbol)}/quote`); }
+  recommendation(symbol: string): Observable<Recommendation> { return this.http.get<Recommendation>(`${this.baseUrl}/api/recommendations/${encodeURIComponent(symbol)}`); }
+  aiResearch(request: AiResearchRequest): Observable<AiResearchResult> { return this.http.post<AiResearchResult>(`${this.baseUrl}/api/ai/research`, request); }
   paperTrade(symbol: string, quantity: number, idempotencyKey: string): Observable<PaperTradeResult> {
-    return this.http.post<PaperTradeResult>(
-      `${this.baseUrl}/api/paper-trades/${encodeURIComponent(symbol)}?quantity=${encodeURIComponent(quantity)}`,
-      null,
-      { headers: { 'Idempotency-Key': idempotencyKey } }
-    );
+    return this.http.post<PaperTradeResult>(`${this.baseUrl}/api/paper-trades/${encodeURIComponent(symbol)}?quantity=${encodeURIComponent(quantity)}`, null, { headers: { 'Idempotency-Key': idempotencyKey } });
   }
+  backtest(request: BacktestRequest): Observable<BacktestResponse> { return this.http.post<BacktestResponse>(`${this.baseUrl}/api/backtests`, request); }
 }
