@@ -95,7 +95,7 @@ public sealed class MySqlPersistenceIntegrationTests
     }
 
     [Fact]
-    public async Task Durable_Risk_Monitor_Persists_Price_And_StopLoss_Alert()
+    public async Task Durable_Risk_Monitor_Persists_Price_StopLoss_Alert_And_Market_Snapshot()
     {
         await using var db = await CreateMigratedContextAsync();
         var portfolioId = Guid.NewGuid();
@@ -110,9 +110,10 @@ public sealed class MySqlPersistenceIntegrationTests
         });
         await db.SaveChangesAsync();
 
+        var providerTimestamp = now.AddSeconds(-2);
         var options = new DbContextOptionsBuilder<TradingDbContext>().UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql")).Options;
         var monitor = new DurableRiskMonitor(
-            new FakeMarketDataProvider(new MarketQuote(new Symbol("TCS", "11536"), "NSE", "11536", now, 93m, 94m, 91m, 92m, 92m, 10_000, "integration")),
+            new FakeMarketDataProvider(new MarketQuote(new Symbol("TCS", "11536"), "NSE", "11536", providerTimestamp, 93m, 94m, 91m, 92m, 92m, 10_000, "integration")),
             new TestUnitOfWorkFactory(options),
             portfolioId);
 
@@ -123,6 +124,11 @@ public sealed class MySqlPersistenceIntegrationTests
         Assert.Equal(92m, position.CurrentMarketPrice);
         var alerts = await verify.Alerts.AsNoTracking().Where(x => x.PositionId == positionId && x.Rule == "STOP_LOSS").ToListAsync();
         Assert.Single(alerts);
+        var snapshot = await verify.MarketDataSnapshots.AsNoTracking().SingleAsync(x => x.Symbol == "TCS" && x.Provider == "integration");
+        Assert.Equal(providerTimestamp, snapshot.ProviderTimestamp);
+        Assert.Equal(now.AddSeconds(-2), snapshot.ProviderTimestamp);
+        Assert.Equal(92m, snapshot.LastTradedPrice);
+        Assert.Equal("NSE", snapshot.Exchange);
     }
 
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
