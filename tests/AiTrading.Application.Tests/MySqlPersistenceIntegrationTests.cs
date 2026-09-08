@@ -1,3 +1,4 @@
+using AiTrading.Application;
 using AiTrading.Domain;
 using AiTrading.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -82,6 +83,37 @@ public sealed class MySqlPersistenceIntegrationTests
         Assert.Equal(95m, restored.StopLoss);
     }
 
+    [Fact]
+    public async Task Durable_Risk_Monitor_Persists_Price_And_StopLoss_Alert()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var portfolioId = Guid.NewGuid();
+        var positionId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        db.Portfolios.Add(new PortfolioRecord { Id = portfolioId, Cash = 100_000m, UpdatedAt = now, Version = 1 });
+        db.Positions.Add(new PositionRecord
+        {
+            Id = positionId, PortfolioId = portfolioId, Symbol = "TCS", InstrumentToken = "11536",
+            Quantity = 10, AverageEntryPrice = 100m, CurrentMarketPrice = 100m, StopLoss = 95m,
+            OpenedAt = now, UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>().UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql")).Options;
+        var monitor = new DurableRiskMonitor(
+            new FakeMarketDataProvider(new MarketQuote(new Symbol("TCS", "11536"), "NSE", "11536", now, 93m, 94m, 91m, 92m, 92m, 10_000, "integration")),
+            new TestUnitOfWorkFactory(options),
+            portfolioId);
+
+        await monitor.CheckOnceAsync(CancellationToken.None);
+
+        await using var verify = new TradingDbContext(options);
+        var position = await verify.Positions.AsNoTracking().SingleAsync(x => x.Id == positionId);
+        Assert.Equal(92m, position.CurrentMarketPrice);
+        var alerts = await verify.Alerts.AsNoTracking().Where(x => x.PositionId == positionId && x.Rule == "STOP_LOSS").ToListAsync();
+        Assert.Single(alerts);
+    }
+
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
     {
         var connectionString = ConnectionString;
@@ -98,27 +130,24 @@ public sealed class MySqlPersistenceIntegrationTests
 
     private static OrderRecord CreateOrder(Guid id, string key) => new()
     {
-        Id = id,
-        IdempotencyKey = key,
-        Symbol = "TCS",
-        Side = "BUY",
-        Quantity = 1,
-        LimitPrice = 100m,
-        StrategyVersion = "integration",
-        CreatedAt = DateTimeOffset.UtcNow,
-        ExecutionMode = "paper",
-        Status = "created"
+        Id = id, IdempotencyKey = key, Symbol = "TCS", Side = "BUY", Quantity = 1, LimitPrice = 100m,
+        StrategyVersion = "integration", CreatedAt = DateTimeOffset.UtcNow, ExecutionMode = "paper", Status = "created"
     };
 
     private static AlertRecord CreateAlert(Guid id, Guid positionId, string bucket) => new()
     {
-        Id = id,
-        PositionId = positionId,
-        Symbol = "TCS",
-        Rule = "STOP_LOSS",
-        Severity = "High",
-        Message = "integration stop loss",
-        EvaluationBucket = bucket,
-        CreatedAt = DateTimeOffset.UtcNow
+        Id = id, PositionId = positionId, Symbol = "TCS", Rule = "STOP_LOSS", Severity = "High",
+        Message = "integration stop loss", EvaluationBucket = bucket, CreatedAt = DateTimeOffset.UtcNow
     };
+
+    private sealed class FakeMarketDataProvider(MarketQuote quote) : IMarketDataProvider
+    {
+        public Task<MarketQuote> GetQuoteAsync(Symbol symbol, CancellationToken cancellationToken) => Task.FromResult(quote);
+        public Task<IReadOnlyList<Candle>> GetCandlesAsync(Symbol symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Candle>>([]);
+    }
+
+    private sealed class TestUnitOfWorkFactory(DbContextOptions<TradingDbContext> options) : ITradingUnitOfWorkFactory
+    {
+        public Task<ITradingUnitOfWork> CreateAsync(CancellationToken cancellationToken) => Task.FromResult<ITradingUnitOfWork>(new EfTradingUnitOfWork(new TradingDbContext(options)));
+    }
 }
