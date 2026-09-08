@@ -10,13 +10,14 @@ public sealed class MySqlPersistenceIntegrationTests
     [Fact]
     public async Task MySql_Migration_Creates_Required_Schema_And_Enforces_Idempotency()
     {
-        if (string.IsNullOrWhiteSpace(ConnectionString))
+        var connectionString = ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            Assert.Skip("AI_TRADING_MYSQL_CONNECTION is not configured.");
+            throw new InvalidOperationException("AI_TRADING_MYSQL_CONNECTION must be configured for MySQL integration tests.");
         }
 
         var options = new DbContextOptionsBuilder<TradingDbContext>()
-            .UseMySql(ConnectionString, ServerVersion.Parse("8.0.0-mysql"))
+            .UseMySql(connectionString, ServerVersion.Parse("8.0.0-mysql"))
             .Options;
 
         await using var db = new TradingDbContext(options);
