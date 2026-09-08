@@ -31,11 +31,11 @@
 
 ## V3.4 — AI research boundary
 
-- [ ] Structured AI research request/response contract.
-- [ ] Provider-neutral adapter.
-- [ ] Cloud/local provider configuration boundary.
-- [ ] Explainable evidence and uncertainty presentation.
-- [ ] Verify AI cannot authorize execution.
+- [x] Structured AI research request/response contract.
+- [x] Provider-neutral adapter.
+- [x] Cloud/local provider configuration boundary.
+- [x] Explainable evidence and uncertainty presentation.
+- [x] Verify AI cannot authorize execution.
 
 ## V3.5 — Paper-trade workflow
 
