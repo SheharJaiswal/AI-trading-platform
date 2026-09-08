@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { HealthStatus, MarketQuote, PortfolioSnapshot, Recommendation } from './trading-api.models';
+import { AlertSnapshot, HealthStatus, MarketQuote, PortfolioSnapshot, Recommendation } from './trading-api.models';
 
 @Injectable({ providedIn: 'root' })
 export class TradingApiService {
@@ -14,6 +14,10 @@ export class TradingApiService {
 
   portfolio(): Observable<PortfolioSnapshot> {
     return this.http.get<PortfolioSnapshot>(`${this.baseUrl}/api/portfolio`);
+  }
+
+  alerts(): Observable<AlertSnapshot[]> {
+    return this.http.get<AlertSnapshot[]>(`${this.baseUrl}/api/alerts`);
   }
 
   quote(symbol: string): Observable<MarketQuote> {
