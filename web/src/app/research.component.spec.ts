@@ -61,7 +61,7 @@ describe('ResearchComponent', () => {
     expect(api.aiResearch).toHaveBeenCalledWith(jasmine.objectContaining({ symbol: 'RELIANCE', question: component.question }));
     const request = api.aiResearch.calls.mostRecent().args[0];
     expect(request.evidence.join(' ')).toContain('PRICE_ABOVE_SMA20');
-    expect(request.evidence.join(' ')).toContain('deterministic action Buy');
+    expect(request.evidence.join(' ')).toContain('Deterministic action Buy');
     expect(component.aiResult?.provider).toBe('disabled');
   });
 
