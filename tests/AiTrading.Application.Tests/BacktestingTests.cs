@@ -1,53 +1,11 @@
-using AiTrading.Application;
-using AiTrading.Domain;
-
+using AiTrading.Application;using AiTrading.Domain;using System.Reflection;
 namespace AiTrading.Application.Tests;
-
-public sealed class BacktestingTests
-{
-    [Fact]
-    public void Run_is_deterministic_for_identical_inputs()
-    {
-        var candles = BuildCandles(); var engine = Engine(); var config = new BacktestConfiguration(10_000m, 1, 0.001m, 5m);
-        var first = engine.Run(new Symbol("TEST", "1"), candles, config); var second = engine.Run(new Symbol("TEST", "1"), candles, config);
-        Assert.Equal(first.EndingCash, second.EndingCash); Assert.Equal(first.ReturnPercent, second.ReturnPercent); Assert.Equal(first.Trades, second.Trades); Assert.Equal(first.RiskEvents, second.RiskEvents);
-    }
-
-    [Fact]
-    public void Run_never_uses_a_future_candle_for_an_earlier_decision()
-    {
-        var candles = BuildCandles(); var altered = candles.Select((c, i) => i == candles.Count - 1 ? c with { Open = 10_000m, High = 10_100m, Low = 9_900m, Close = 10_050m } : c).ToArray(); var engine = Engine();
-        var original = engine.Run(new Symbol("TEST", "1"), candles, new BacktestConfiguration(10_000m, 1, 0m, 0m)); var changed = engine.Run(new Symbol("TEST", "1"), altered, new BacktestConfiguration(10_000m, 1, 0m, 0m)); var cutoff = candles[^1].Timestamp;
-        Assert.Equal(original.Trades.Where(x => x.Timestamp < cutoff), changed.Trades.Where(x => x.Timestamp < cutoff)); Assert.Equal(original.EquityCurve.Where(x => x.Timestamp < cutoff), changed.EquityCurve.Where(x => x.Timestamp < cutoff));
-    }
-
-    [Fact]
-    public void Run_records_risk_events_for_insufficient_data()
-    {
-        var result = Engine().Run(new Symbol("TEST", "1"), BuildCandles().Take(5).ToArray(), new BacktestConfiguration(10_000m, 1, 0m, 0m));
-        Assert.NotEmpty(result.RiskEvents); Assert.All(result.RiskEvents, x => Assert.Equal(RiskDecision.InsufficientData, x.Decision)); Assert.Empty(result.Trades);
-    }
-
-    [Fact]
-    public void Run_applies_fee_and_slippage_to_simulated_buy()
-    {
-        var candles = BuildCandles(); var engine = Engine(); var noCost = engine.Run(new Symbol("TEST", "1"), candles, new BacktestConfiguration(10_000m, 1, 0m, 0m)); var costs = engine.Run(new Symbol("TEST", "1"), candles, new BacktestConfiguration(10_000m, 1, 0.01m, 100m));
-        Assert.True(costs.EndingCash <= noCost.EndingCash); if (costs.Trades.Count > 0) Assert.True(costs.Trades[0].Price > noCost.Trades[0].Price);
-    }
-
-    [Fact] public void Run_rejects_zero_cash() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(0m, 1, 0m, 0m)));
-    [Fact] public void Run_rejects_zero_quantity() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 0, 0m, 0m)));
-    [Fact] public void Run_rejects_negative_fee() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, -0.01m, 0m)));
-    [Fact] public void Run_rejects_fee_above_100_percent() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, 1.01m, 0m)));
-    [Fact] public void Run_rejects_excessive_slippage() => Assert.ThrowsAny<ArgumentException>(() => Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, 0m, 10001m)));
-
-    [Fact]
-    public void Run_marks_every_result_as_simulation_only()
-    {
-        var result = Engine().Run(new Symbol("TEST", "1"), BuildCandles(), new BacktestConfiguration(10_000m, 1, 0m, 0m));
-        Assert.True(result.SimulationOnly);
-    }
-
-    private static DeterministicBacktestEngine Engine() => new(new DeterministicRecommendationEngine(), new RiskEngine());
-    private static IReadOnlyList<HistoricalCandle> BuildCandles() { var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero); return Enumerable.Range(0, 25).Select(i => new HistoricalCandle(new Symbol("TEST", "1"), "1d", start.AddDays(i), 100 + i, 102 + i, 99 + i, 101 + i, 1000 + i, "fixture", start.AddDays(i).AddMinutes(1))).ToArray(); }
-}
+public sealed class BacktestingTests{
+ [Fact]public void Run_is_deterministic_for_identical_inputs(){var candles=BuildCandles();var e=Engine();var c=new BacktestConfiguration(10000m,1,.001m,5m);var a=e.Run(new Symbol("TEST","1"),candles,c);var b=e.Run(new Symbol("TEST","1"),candles,c);Assert.Equal(a.EndingCash,b.EndingCash);Assert.Equal(a.ReturnPercent,b.ReturnPercent);Assert.Equal(a.Trades,b.Trades);Assert.Equal(a.RiskEvents,b.RiskEvents);}
+ [Fact]public void Run_never_uses_a_future_candle_for_an_earlier_decision(){var candles=BuildCandles();var altered=candles.Select((c,i)=>i==candles.Count-1?c with{Open=10000m,High=10100m,Low=9900m,Close=10050m}:c).ToArray();var e=Engine();var a=e.Run(new Symbol("TEST","1"),candles,new BacktestConfiguration(10000m,1,0,0));var b=e.Run(new Symbol("TEST","1"),altered,new BacktestConfiguration(10000m,1,0,0));var cutoff=candles[^1].Timestamp;Assert.Equal(a.Trades.Where(x=>x.Timestamp<cutoff),b.Trades.Where(x=>x.Timestamp<cutoff));Assert.Equal(a.EquityCurve.Where(x=>x.Timestamp<cutoff),b.EquityCurve.Where(x=>x.Timestamp<cutoff));}
+ [Fact]public void Run_records_risk_events_for_insufficient_data(){var r=Engine().Run(new Symbol("TEST","1"),BuildCandles().Take(5).ToArray(),new BacktestConfiguration(10000m,1,0,0));Assert.NotEmpty(r.RiskEvents);Assert.All(r.RiskEvents,x=>Assert.Equal(RiskDecision.InsufficientData,x.Decision));Assert.Empty(r.Trades);}
+ [Fact]public void Run_applies_fee_and_slippage_to_simulated_buy(){var c=BuildCandles();var e=Engine();var a=e.Run(new Symbol("TEST","1"),c,new BacktestConfiguration(10000m,1,0,0));var b=e.Run(new Symbol("TEST","1"),c,new BacktestConfiguration(10000m,1,.01m,100m));Assert.True(b.EndingCash<=a.EndingCash);if(b.Trades.Count>0)Assert.True(b.Trades[0].Price>a.Trades[0].Price);}
+ [Fact]public void Run_rejects_invalid_costs(){Assert.ThrowsAny<ArgumentException>(()=>Engine().Run(new Symbol("TEST","1"),BuildCandles(),new BacktestConfiguration(0,1,0,0)));Assert.ThrowsAny<ArgumentException>(()=>Engine().Run(new Symbol("TEST","1"),BuildCandles(),new BacktestConfiguration(10000,0,0,0)));Assert.ThrowsAny<ArgumentException>(()=>Engine().Run(new Symbol("TEST","1"),BuildCandles(),new BacktestConfiguration(10000,1,-.01m,0)));Assert.ThrowsAny<ArgumentException>(()=>Engine().Run(new Symbol("TEST","1"),BuildCandles(),new BacktestConfiguration(10000,1,1.01m,0)));Assert.ThrowsAny<ArgumentException>(()=>Engine().Run(new Symbol("TEST","1"),BuildCandles(),new BacktestConfiguration(10000,1,0,10001)));}
+ [Fact]public void Run_marks_every_result_as_simulation_only(){Assert.True(Engine().Run(new Symbol("TEST","1"),BuildCandles(),new BacktestConfiguration(10000,1,0,0)).SimulationOnly);}
+ [Fact]public void Engine_has_no_live_portfolio_or_execution_dependencies(){var parameters=typeof(DeterministicBacktestEngine).GetConstructors().Single().GetParameters().Select(x=>x.ParameterType).ToArray();Assert.DoesNotContain(parameters,x=>x==typeof(IPortfolio)||typeof(IPaperExecutionProvider).IsAssignableFrom(x));}
+ private static DeterministicBacktestEngine Engine()=>new(new DeterministicRecommendationEngine(),new RiskEngine());private static IReadOnlyList<HistoricalCandle> BuildCandles(){var s=new DateTimeOffset(2026,1,1,0,0,0,TimeSpan.Zero);return Enumerable.Range(0,25).Select(i=>new HistoricalCandle(new Symbol("TEST","1"),"1d",s.AddDays(i),100+i,102+i,99+i,101+i,1000+i,"fixture",s.AddDays(i).AddMinutes(1))).ToArray();}}
