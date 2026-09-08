@@ -48,11 +48,7 @@ public sealed class EfMarketDataSnapshotRepository(TradingDbContext db) : IMarke
 
 public sealed class EfHistoricalCandleRepository(TradingDbContext db) : IHistoricalCandleRepository
 {
-    public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken ct)
-    {
-        foreach (var c in candles) db.HistoricalCandles.Add(new HistoricalCandleRecord { Id=c.Id, Symbol=c.Symbol.Value, InstrumentToken=c.InstrumentToken ?? c.Symbol.InstrumentToken, Interval=c.Interval, Timestamp=c.Timestamp, Open=c.Open, High=c.High, Low=c.Low, Close=c.Close, Volume=c.Volume, Source=c.Source, ReceivedAt=c.ReceivedAt });
-        return Task.CompletedTask;
-    }
+    public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken ct) { foreach (var c in candles) db.HistoricalCandles.Add(new HistoricalCandleRecord { Id=c.Id, Symbol=c.Symbol.Value, InstrumentToken=c.InstrumentToken ?? c.Symbol.InstrumentToken, Interval=c.Interval, Timestamp=c.Timestamp, Open=c.Open, High=c.High, Low=c.Low, Close=c.Close, Volume=c.Volume, Source=c.Source, ReceivedAt=c.ReceivedAt }); return Task.CompletedTask; }
     public async Task<IReadOnlyList<HistoricalCandleState>> GetRangeAsync(Symbol symbol, string interval, DateTimeOffset start, DateTimeOffset end, CancellationToken ct) => await db.HistoricalCandles.AsNoTracking().Where(x => x.Symbol == symbol.Value && x.Interval == interval && x.Timestamp >= start && x.Timestamp <= end).OrderBy(x => x.Timestamp).Select(x => x.ToState()).ToListAsync(ct);
 }
 
@@ -68,7 +64,7 @@ public sealed class EfTradingUnitOfWork(TradingDbContext db) : ITradingUnitOfWor
     public async ValueTask DisposeAsync() { if (transaction is not null) await transaction.DisposeAsync(); await db.DisposeAsync(); }
 }
 
-public sealed class EfTradingUnitOfWorkFactory(IDbContextFactory<TradingDbContext> factory)
+public sealed class EfTradingUnitOfWorkFactory(IDbContextFactory<TradingDbContext> factory) : ITradingUnitOfWorkFactory
 {
     public async Task<ITradingUnitOfWork> CreateAsync(CancellationToken ct) => new EfTradingUnitOfWork(await factory.CreateDbContextAsync(ct));
 }
