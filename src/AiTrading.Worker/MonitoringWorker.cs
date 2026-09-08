@@ -57,6 +57,11 @@ public sealed class MonitoringWorker(
     {
         for (var attempt = 1; attempt <= options.MaxAttempts; attempt++)
         {
+            if (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             try
             {
                 await checkOnce(stoppingToken);
