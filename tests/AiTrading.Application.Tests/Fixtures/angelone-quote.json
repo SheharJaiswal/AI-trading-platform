@@ -1,0 +1,22 @@
+{
+  "status": true,
+  "message": "SUCCESS",
+  "errorcode": "",
+  "data": {
+    "fetched": [
+      {
+        "exchange": "NSE",
+        "tradingSymbol": "TCS-EQ",
+        "symbolToken": "11536",
+        "ltp": 3501.25,
+        "open": 3490.00,
+        "high": 3525.00,
+        "low": 3472.10,
+        "close": 3488.50,
+        "tradeVolume": 123456,
+        "exchFeedTime": "2026-09-08T09:45:00+05:30"
+      }
+    ],
+    "unfetched": []
+  }
+}
