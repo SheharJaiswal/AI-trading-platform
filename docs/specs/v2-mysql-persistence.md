@@ -32,4 +32,4 @@ CI must validate restore/build/test and migration model compilation. Integration
 
 ## Provider decision
 
-Use `Pomelo.EntityFrameworkCore.MySql` 9.0.0 for the first V2 implementation. NuGet lists it as compatible with `net10.0`; its EF Core dependency is 9.x. This is intentional: target framework compatibility is separate from the EF Core provider version, and the CI build is the compatibility gate. citeturn0search0turn0search10
+Use `Pomelo.EntityFrameworkCore.MySql` 9.0.0 for the first V2 implementation. Compatibility with `net10.0` is treated as a CI validation gate; the provider and EF Core package versions are intentionally pinned for reproducibility.
