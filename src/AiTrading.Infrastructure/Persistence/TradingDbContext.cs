@@ -1,0 +1,180 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace AiTrading.Infrastructure.Persistence;
+
+public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options) : DbContext(options)
+{
+    public DbSet<PortfolioRecord> Portfolios => Set<PortfolioRecord>();
+    public DbSet<OrderRecord> Orders => Set<OrderRecord>();
+    public DbSet<FillRecord> Fills => Set<FillRecord>();
+    public DbSet<PositionRecord> Positions => Set<PositionRecord>();
+    public DbSet<AlertRecord> Alerts => Set<AlertRecord>();
+    public DbSet<MarketDataSnapshotRecord> MarketDataSnapshots => Set<MarketDataSnapshotRecord>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PortfolioRecord>(entity =>
+        {
+            entity.ToTable("portfolios");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnType("char(36)");
+            entity.Property(x => x.Cash).HasPrecision(20, 4);
+            entity.Property(x => x.RealizedPnl).HasPrecision(20, 4);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasIndex(x => x.Version);
+        });
+
+        modelBuilder.Entity<OrderRecord>(entity =>
+        {
+            entity.ToTable("orders");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnType("char(36)");
+            entity.Property(x => x.Symbol).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.InstrumentToken).HasMaxLength(100);
+            entity.Property(x => x.Side).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.ExecutionMode).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.StrategyVersion).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.LimitPrice).HasPrecision(20, 4);
+        });
+
+        modelBuilder.Entity<FillRecord>(entity =>
+        {
+            entity.ToTable("fills");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnType("char(36)");
+            entity.Property(x => x.OrderId).HasColumnType("char(36)");
+            entity.Property(x => x.Symbol).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Side).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.ExecutionProvider).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.FillPrice).HasPrecision(20, 4);
+            entity.HasOne<OrderRecord>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => x.OrderId).IsUnique();
+        });
+
+        modelBuilder.Entity<PositionRecord>(entity =>
+        {
+            entity.ToTable("positions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnType("char(36)");
+            entity.Property(x => x.PortfolioId).HasColumnType("char(36)");
+            entity.Property(x => x.Symbol).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.InstrumentToken).HasMaxLength(100);
+            entity.Property(x => x.AverageEntryPrice).HasPrecision(20, 4);
+            entity.Property(x => x.CurrentMarketPrice).HasPrecision(20, 4);
+            entity.Property(x => x.StopLoss).HasPrecision(20, 4);
+            entity.HasIndex(x => new { x.PortfolioId, x.Symbol }).IsUnique();
+            entity.HasOne<PortfolioRecord>().WithMany().HasForeignKey(x => x.PortfolioId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AlertRecord>(entity =>
+        {
+            entity.ToTable("alerts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnType("char(36)");
+            entity.Property(x => x.PositionId).HasColumnType("char(36)");
+            entity.Property(x => x.Rule).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Severity).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.EvaluationBucket).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Symbol).HasMaxLength(100);
+            entity.HasIndex(x => new { x.PositionId, x.Rule, x.EvaluationBucket }).IsUnique();
+            entity.HasOne<PositionRecord>().WithMany().HasForeignKey(x => x.PositionId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<MarketDataSnapshotRecord>(entity =>
+        {
+            entity.ToTable("market_data_snapshots");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnType("char(36)");
+            entity.Property(x => x.Symbol).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.InstrumentToken).HasMaxLength(100);
+            entity.Property(x => x.Provider).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Exchange).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Open).HasPrecision(20, 4);
+            entity.Property(x => x.High).HasPrecision(20, 4);
+            entity.Property(x => x.Low).HasPrecision(20, 4);
+            entity.Property(x => x.Close).HasPrecision(20, 4);
+            entity.Property(x => x.LastTradedPrice).HasPrecision(20, 4);
+            entity.HasIndex(x => new { x.Symbol, x.ProviderTimestamp });
+        });
+    }
+}
+
+public sealed class PortfolioRecord
+{
+    public Guid Id { get; set; }
+    public decimal Cash { get; set; }
+    public decimal RealizedPnl { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public long Version { get; set; }
+}
+
+public sealed class OrderRecord
+{
+    public Guid Id { get; set; }
+    public string Symbol { get; set; } = "";
+    public string? InstrumentToken { get; set; }
+    public string Side { get; set; } = "";
+    public int Quantity { get; set; }
+    public decimal LimitPrice { get; set; }
+    public string StrategyVersion { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string ExecutionMode { get; set; } = "paper";
+    public string Status { get; set; } = "created";
+}
+
+public sealed class FillRecord
+{
+    public Guid Id { get; set; }
+    public Guid OrderId { get; set; }
+    public string Symbol { get; set; } = "";
+    public string Side { get; set; } = "";
+    public int Quantity { get; set; }
+    public decimal FillPrice { get; set; }
+    public DateTimeOffset FilledAt { get; set; }
+    public string ExecutionProvider { get; set; } = "paper";
+}
+
+public sealed class PositionRecord
+{
+    public Guid Id { get; set; }
+    public Guid PortfolioId { get; set; }
+    public string Symbol { get; set; } = "";
+    public string? InstrumentToken { get; set; }
+    public int Quantity { get; set; }
+    public decimal AverageEntryPrice { get; set; }
+    public decimal CurrentMarketPrice { get; set; }
+    public decimal? StopLoss { get; set; }
+    public DateTimeOffset OpenedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class AlertRecord
+{
+    public Guid Id { get; set; }
+    public Guid? PositionId { get; set; }
+    public string? Symbol { get; set; }
+    public string Rule { get; set; } = "";
+    public string Severity { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string EvaluationBucket { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class MarketDataSnapshotRecord
+{
+    public Guid Id { get; set; }
+    public string Symbol { get; set; } = "";
+    public string? InstrumentToken { get; set; }
+    public string Provider { get; set; } = "";
+    public string Exchange { get; set; } = "";
+    public DateTimeOffset ProviderTimestamp { get; set; }
+    public DateTimeOffset ReceivedAt { get; set; }
+    public decimal Open { get; set; }
+    public decimal High { get; set; }
+    public decimal Low { get; set; }
+    public decimal Close { get; set; }
+    public decimal LastTradedPrice { get; set; }
+    public long Volume { get; set; }
+}
