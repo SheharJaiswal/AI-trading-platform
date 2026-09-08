@@ -45,8 +45,9 @@
 
 ## Phase 5 — market-data audit
 
-- [ ] Persist normalized quote snapshots.
-- [ ] Preserve provider/exchange timestamps.
+- [x] Persist normalized quote snapshots from durable monitoring.
+- [x] Preserve provider/exchange timestamps in persisted snapshots.
+- [x] Verify normalized snapshot values through MySQL integration tests.
 
 ## Final gate
 
