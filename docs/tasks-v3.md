@@ -33,7 +33,7 @@
 
 - [x] Structured AI research request/response contract.
 - [x] Provider-neutral adapter.
-- [x] Cloud/local provider configuration boundary.
+- [ ] Cloud/local provider configuration boundary.
 - [x] Explainable evidence and uncertainty presentation.
 - [x] Verify AI cannot authorize execution.
 
