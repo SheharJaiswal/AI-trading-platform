@@ -16,7 +16,7 @@ public partial class HistoricalCandles : Migration
         {
             Id = table.Column<Guid>(type: "char(36)", nullable: false),
             Symbol = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-            InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true),
+            InstrumentToken = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
             Interval = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false),
             Timestamp = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: false),
             Open = table.Column<decimal>(type: "decimal(20,4)", precision: 20, scale: 4, nullable: false),
