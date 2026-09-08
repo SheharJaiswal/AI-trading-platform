@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { TradingApiService } from './core/api/trading-api.service';
 import { HealthStatus, PortfolioSnapshot } from './core/api/trading-api.models';
@@ -5,6 +6,7 @@ import { HealthStatus, PortfolioSnapshot } from './core/api/trading-api.models';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
+  imports: [DatePipe],
   template: `<section class="workspace">
     <div class="hero">
       <div>
@@ -16,16 +18,13 @@ import { HealthStatus, PortfolioSnapshot } from './core/api/trading-api.models';
         <span class="dot"></span>{{ error ? 'API unavailable' : health ? 'API online' : 'Checking API…' }}
       </div>
     </div>
-
     @if (error) { <div class="notice error-box">{{ error }} <button type="button" (click)="load()">Retry</button></div> }
     @if (!health && !error) { <div class="notice">Loading application health…</div> }
-
     <div class="grid">
       <article><h2>Paper portfolio</h2><strong>{{ portfolio?.cash ?? '—' }}</strong><p class="muted">Available virtual cash</p></article>
       <article><h2>Market provider</h2><strong>{{ health?.marketProvider ?? '—' }}</strong><p class="muted">Server-reported provider</p></article>
       <article><h2>Persistence</h2><strong>{{ health ? (health.persistence ? 'MySQL' : 'In-memory') : '—' }}</strong><p class="muted">Durability mode</p></article>
     </div>
-
     <div class="notice"><strong>Paper trading only.</strong> AI is advisory; every execution remains subject to the deterministic server-side risk gate.</div>
     @if (loadedAt) { <p class="freshness">Last successful refresh: {{ loadedAt | date:'medium' }}</p> }
   </section>`,
@@ -37,18 +36,16 @@ export class DashboardComponent implements OnInit {
   portfolio?: PortfolioSnapshot;
   error = '';
   loadedAt?: Date;
-
   ngOnInit(): void { this.load(); }
-
   load(): void {
     this.error = '';
     this.health = undefined;
+    this.portfolio = undefined;
     this.api.health().subscribe({
       next: value => { this.health = value; this.loadedAt = new Date(); this.loadPortfolio(); },
       error: () => { this.error = 'The trading API could not be reached. Data is not assumed to be fresh.'; }
     });
   }
-
   private loadPortfolio(): void {
     this.api.portfolio().subscribe({
       next: value => { this.portfolio = value; this.loadedAt = new Date(); },
