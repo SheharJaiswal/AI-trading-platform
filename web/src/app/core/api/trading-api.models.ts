@@ -72,8 +72,29 @@ export interface AiResearchResult {
   generatedAt: string;
 }
 
+export interface RiskResult {
+  decision: 'Approved' | 'RiskBlocked' | 'InsufficientData' | string;
+  reason?: string | null;
+}
+
+export interface FillSnapshot {
+  orderId: string;
+  symbol: { value: string; instrumentToken?: string | null };
+  side: 'Buy' | 'Sell' | string;
+  quantity: number;
+  price: number;
+  timestamp: string;
+  source: string;
+}
+
+export interface PaperTradeResult {
+  risk: RiskResult;
+  fill?: FillSnapshot | null;
+}
+
 export interface ApiError {
   errorCode?: string;
   message?: string;
+  risk?: RiskResult;
   [key: string]: unknown;
 }
