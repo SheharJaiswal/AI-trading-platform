@@ -18,6 +18,7 @@ public interface IPortfolio
     Portfolio Snapshot();
     void Apply(Fill fill);
     void SetStopLoss(Guid positionId, decimal stopLoss);
+    void UpdateMarketPrice(Symbol symbol, decimal price);
 }
 
 public interface IAlertStore
@@ -100,6 +101,7 @@ public sealed class PaperTradingService(RecommendationService recommendations, R
         var order = new PaperOrder(Guid.NewGuid(), symbol, OrderSide.Buy, quantity, recommendation.ReferencePrice, DateTimeOffset.UtcNow);
         var fill = await execution.ExecuteAsync(order, cancellationToken);
         portfolio.Apply(fill);
+        portfolio.UpdateMarketPrice(symbol, recommendation.ReferencePrice);
         return (riskResult, fill);
     }
 }
@@ -112,6 +114,7 @@ public sealed class RiskMonitor(IMarketDataProvider marketData, IPortfolio portf
         {
             if (position.StopLoss is null) continue;
             var quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
+            portfolio.UpdateMarketPrice(position.Symbol, quote.LastTradedPrice);
             if (quote.LastTradedPrice <= position.StopLoss)
             {
                 var bucket = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
@@ -127,8 +130,17 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
     private decimal _cash = startingCash;
     private decimal _realized;
     private readonly Dictionary<Symbol, Position> _positions = new();
+    private readonly Dictionary<Symbol, decimal> _marketPrices = new();
 
-    public Portfolio Snapshot() => new(_cash, _positions.Values.ToArray(), 0, _realized);
+    public Portfolio Snapshot()
+    {
+        var unrealized = _positions.Values.Sum(position =>
+        {
+            var marketPrice = _marketPrices.GetValueOrDefault(position.Symbol, position.AverageEntryPrice);
+            return (marketPrice - position.AverageEntryPrice) * position.Quantity;
+        });
+        return new(_cash, _positions.Values.ToArray(), unrealized, _realized);
+    }
 
     public void Apply(Fill fill)
     {
@@ -144,6 +156,7 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
                 _positions[fill.Symbol] = existing with { Quantity = quantity, AverageEntryPrice = average };
             }
             else _positions[fill.Symbol] = new(Guid.NewGuid(), fill.Symbol, fill.Quantity, fill.Price, null);
+            _marketPrices[fill.Symbol] = fill.Price;
         }
         else
         {
@@ -152,7 +165,11 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
             _cash += value;
             _realized += (fill.Price - position.AverageEntryPrice) * fill.Quantity;
             var remaining = position.Quantity - fill.Quantity;
-            if (remaining == 0) _positions.Remove(fill.Symbol);
+            if (remaining == 0)
+            {
+                _positions.Remove(fill.Symbol);
+                _marketPrices.Remove(fill.Symbol);
+            }
             else _positions[fill.Symbol] = position with { Quantity = remaining };
         }
     }
@@ -162,5 +179,10 @@ public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
         var match = _positions.FirstOrDefault(x => x.Value.Id == positionId);
         if (match.Value is null) throw new KeyNotFoundException("Position not found.");
         _positions[match.Key] = match.Value with { StopLoss = stopLoss };
+    }
+
+    public void UpdateMarketPrice(Symbol symbol, decimal price)
+    {
+        if (_positions.ContainsKey(symbol)) _marketPrices[symbol] = price;
     }
 }
