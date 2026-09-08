@@ -54,6 +54,26 @@ public sealed class MySqlPersistenceIntegrationTests
     }
 
     [Fact]
+    public async Task MySql_Rolls_Back_UnitOfWork_When_Commit_Fails()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var orderId = Guid.NewGuid();
+        var order = CreateOrder(orderId, $"rollback-{Guid.NewGuid():N}");
+        db.Orders.Add(order);
+        db.Fills.Add(new FillRecord
+        {
+            Id = Guid.NewGuid(), OrderId = Guid.NewGuid(), Symbol = "TCS", Side = "BUY", Quantity = 1,
+            FillPrice = 100m, FilledAt = DateTimeOffset.UtcNow, ExecutionProvider = "paper"
+        });
+
+        await using var unitOfWork = new EfTradingUnitOfWork(db);
+        await Assert.ThrowsAsync<DbUpdateException>(() => unitOfWork.CommitAsync(CancellationToken.None));
+
+        await using var verify = await CreateMigratedContextAsync();
+        Assert.Null(await verify.Orders.AsNoTracking().SingleOrDefaultAsync(x => x.Id == orderId));
+    }
+
+    [Fact]
     public async Task MySql_Persists_Latest_Market_Price_On_Position()
     {
         await using var db = await CreateMigratedContextAsync();
@@ -126,9 +146,9 @@ public sealed class MySqlPersistenceIntegrationTests
         Assert.Single(alerts);
         var snapshot = await verify.MarketDataSnapshots.AsNoTracking().SingleAsync(x => x.Symbol == "TCS" && x.Provider == "integration");
         Assert.Equal(providerTimestamp, snapshot.ProviderTimestamp);
-        Assert.Equal(now.AddSeconds(-2), snapshot.ProviderTimestamp);
         Assert.Equal(92m, snapshot.LastTradedPrice);
         Assert.Equal("NSE", snapshot.Exchange);
+        Assert.Equal(10_000, snapshot.Volume);
     }
 
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
