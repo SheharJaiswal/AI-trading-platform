@@ -18,12 +18,14 @@
 
 ## V4.2 — Replay engine
 
-- [ ] Chronological replay.
-- [ ] No-lookahead enforcement.
-- [ ] Reuse existing recommendation logic.
-- [ ] Reuse deterministic risk gate.
-- [ ] Explicit fee/slippage/fill assumptions.
-- [ ] Deterministic simulation accounting.
+- [x] Chronological replay.
+- [x] No-lookahead enforcement through replay-prefix evaluation.
+- [x] Reuse existing recommendation logic through shared deterministic evaluator.
+- [x] Reuse deterministic risk gate.
+- [x] Explicit fee/slippage/fill assumptions.
+- [x] Deterministic simulation accounting and equity curve.
+- [ ] Persist risk-blocked decisions alongside the trade ledger.
+- [ ] Prove replay cannot mutate the live paper portfolio.
 
 ## V4.3 — Backtest API/audit
 
