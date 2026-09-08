@@ -10,10 +10,11 @@ public sealed record BacktestConfiguration(
     string StrategyVersion = "baseline-v1");
 
 public sealed record BacktestTrade(DateTimeOffset Timestamp, OrderSide Side, int Quantity, decimal Price, decimal Fee, RiskDecision RiskDecision, string? RiskReason);
+public sealed record BacktestRiskEvent(DateTimeOffset Timestamp, RiskDecision Decision, string? Reason, decimal AvailableCash, int RequestedQuantity);
 public sealed record BacktestEquityPoint(DateTimeOffset Timestamp, decimal Cash, decimal PositionValue, decimal Equity);
-public sealed record BacktestResult(decimal StartingCash, decimal EndingCash, decimal ReturnPercent, decimal MaxDrawdownPercent, IReadOnlyList<BacktestTrade> Trades, IReadOnlyList<BacktestEquityPoint> EquityCurve)
+public sealed record BacktestResult(decimal StartingCash, decimal EndingCash, decimal ReturnPercent, decimal MaxDrawdownPercent, IReadOnlyList<BacktestTrade> Trades, IReadOnlyList<BacktestEquityPoint> EquityCurve, IReadOnlyList<BacktestRiskEvent> RiskEvents)
 {
-    public int WinCount => Trades.Count(x => x.Side == OrderSide.Sell);
+    public int WinCount => Trades.Count(x => x.Side == OrderSide.Sell && x.RiskDecision == RiskDecision.Approved);
     public int LossCount => 0;
 }
 
@@ -26,11 +27,12 @@ public sealed class DeterministicBacktestEngine(DeterministicRecommendationEngin
         if (configuration.FeeRate < 0 || configuration.SlippageBasisPoints < 0) throw new ArgumentOutOfRangeException(nameof(configuration));
 
         var ordered = historicalCandles.Where(x => x.Symbol == symbol).OrderBy(x => x.Timestamp).ToArray();
-        if (ordered.Length == 0) return new(configuration.StartingCash, configuration.StartingCash, 0, 0, [], []);
+        if (ordered.Length == 0) return new(configuration.StartingCash, configuration.StartingCash, 0, 0, [], [], []);
         var cash = configuration.StartingCash;
         var quantity = 0;
         var averageEntry = 0m;
         var trades = new List<BacktestTrade>();
+        var riskEvents = new List<BacktestRiskEvent>();
         var curve = new List<BacktestEquityPoint>();
         var peak = configuration.StartingCash;
         var maxDrawdown = 0m;
@@ -41,6 +43,7 @@ public sealed class DeterministicBacktestEngine(DeterministicRecommendationEngin
             var prefix = ordered.Take(i + 1).Select(x => x.ToCandle()).ToArray();
             var recommendation = recommendationEngine.Evaluate(symbol, prefix, candle.Timestamp);
             var risk = riskEngine.Evaluate(recommendation, cash, configuration.QuantityPerTrade);
+            riskEvents.Add(new(candle.Timestamp, risk.Decision, risk.Reason, cash, configuration.QuantityPerTrade));
             if (risk.Decision == RiskDecision.Approved)
             {
                 var fillPrice = candle.Close * (1m + configuration.SlippageBasisPoints / 10000m);
@@ -65,6 +68,6 @@ public sealed class DeterministicBacktestEngine(DeterministicRecommendationEngin
 
         var ending = curve[^1].Equity;
         var returnPercent = (ending - configuration.StartingCash) / configuration.StartingCash * 100m;
-        return new(configuration.StartingCash, ending, returnPercent, maxDrawdown, trades, curve);
+        return new(configuration.StartingCash, ending, returnPercent, maxDrawdown, trades, curve, riskEvents);
     }
 }
