@@ -15,7 +15,8 @@ public static class TradingPersistenceServiceCollectionExtensions
 
         var serverVersion = ServerVersion.Parse(configuration["Persistence:MySql:ServerVersion"] ?? "8.0.0-mysql");
         services.AddDbContextFactory<TradingDbContext>(options =>
-            options.UseMySql(connectionString, serverVersion));
+            options.UseMySql(connectionString, serverVersion, mySql =>
+                mySql.MigrationsAssembly(typeof(TradingDbContext).Assembly.GetName().Name)));
         services.AddScoped<ITradingUnitOfWorkFactory, EfTradingUnitOfWorkFactory>();
 
         return services;
