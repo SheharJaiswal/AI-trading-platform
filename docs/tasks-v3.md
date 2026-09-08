@@ -39,11 +39,11 @@
 
 ## V3.5 — Paper-trade workflow
 
-- [ ] Explicit user confirmation.
-- [ ] Server-side deterministic risk decision.
-- [ ] Risk-blocked UI path.
-- [ ] Durable execution result display.
-- [ ] Audit-friendly status/error handling.
+- [x] Explicit user confirmation.
+- [x] Server-side deterministic risk decision.
+- [x] Risk-blocked UI path.
+- [x] Durable execution result display.
+- [x] Audit-friendly status/error handling.
 
 ## Final gate
 
