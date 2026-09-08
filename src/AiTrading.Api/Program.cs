@@ -33,7 +33,6 @@ builder.Services.AddSingleton<IPortfolio>(_ => new PaperPortfolio(1_000_000m));
 builder.Services.AddSingleton<IAlertStore, InMemoryAlertStore>();
 builder.Services.AddSingleton<RiskMonitor>();
 builder.Services.AddSingleton<PaperTradingService>();
-builder.Services.AddHostedService<RiskMonitoringHostedService>();
 
 var app = builder.Build();
 app.MapOpenApi();
