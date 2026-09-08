@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using AiTrading.Application;
 using AiTrading.Infrastructure;
 using AiTrading.Worker;
