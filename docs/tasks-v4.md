@@ -23,6 +23,7 @@
 - [x] Deterministic simulation accounting and equity curve.
 - [x] Risk decisions captured as immutable replay events.
 - [x] Replay engine has no portfolio/execution-provider dependency.
+- [x] Invalid ranges/configurations are rejected before persistence access.
 - [ ] Integration proof that live paper portfolio remains unchanged.
 
 ## V4.3 — Backtest API/audit
