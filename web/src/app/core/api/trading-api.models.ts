@@ -5,11 +5,28 @@ export interface HealthStatus {
   persistence: boolean;
 }
 
+export interface PositionSnapshot {
+  id: string;
+  symbol: string;
+  quantity: number;
+  averageEntryPrice: number;
+  stopLoss?: number;
+}
+
 export interface PortfolioSnapshot {
   cash: number;
-  positions?: unknown[];
+  positions?: PositionSnapshot[];
+  unrealizedPnl?: number;
   realizedPnl?: number;
   [key: string]: unknown;
+}
+
+export interface AlertSnapshot {
+  key: string;
+  severity: 'Info' | 'Warning' | 'High' | 'Critical' | string;
+  message: string;
+  createdAt: string;
+  symbol?: string;
 }
 
 export interface MarketQuote {
