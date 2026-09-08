@@ -36,11 +36,18 @@
 
 ## V4.4 — Backtesting workspace
 - [x] Configuration form.
+- [x] API client and typed request/result models.
+- [x] Run status and errors from API.
+- [x] Equity/performance metrics summary.
+- [x] Simulated trade ledger.
 - [ ] Dataset validation/provenance state.
-- [ ] Run status and errors from API.
-- [ ] Equity curve and performance metrics.
-- [ ] Simulated trade ledger.
 - [x] Explicit simulation-only labeling.
+
+## Current execution hardening
+- [x] Replay configuration bounds validated centrally.
+- [x] Replay prefix reuses one growing allocation instead of rebuilding the candle prefix.
+- [x] Simulation-only result marker exposed to the UI contract.
+- [x] Angular backtest form executes the real API rather than a placeholder message.
 
 ## Final gate
 - [ ] .NET CI green.
