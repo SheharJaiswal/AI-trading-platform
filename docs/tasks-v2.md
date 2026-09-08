@@ -13,8 +13,8 @@
 - [x] Add explicit entity mappings and constraints.
 - [x] Add design-time DbContext factory.
 - [x] Add initial migration.
-- [ ] CI restore/build/test against V2 branch.
-- [ ] Review migration/model against specification.
+- [x] CI restore/build/test against V2 branch.
+- [x] Review migration/model against specification.
 
 ## Phase 2 — repository contracts
 
@@ -26,10 +26,13 @@
 
 ## Phase 3 — durable paper trading
 
-- [ ] Persist approved paper execution atomically.
-- [ ] Persist/restore portfolio and positions.
-- [ ] Prevent duplicate execution/double debit.
-- [ ] Preserve V1 risk gate.
+- [x] Persist approved paper execution atomically.
+- [x] Persist/restore portfolio and positions.
+- [x] Prevent duplicate execution/double debit.
+- [x] Preserve V1 risk gate.
+- [x] Replace API paper-trade execution path with durable service.
+- [x] Require API `Idempotency-Key`.
+- [x] Add API contract tests for idempotency.
 
 ## Phase 4 — durable monitoring
 
@@ -45,7 +48,7 @@
 
 ## Final gate
 
-- [ ] Integration tests.
+- [ ] MySQL integration tests.
 - [ ] CI green on final implementation commit.
 - [ ] BA/Senior Engineer/Trader acceptance review.
 - [ ] Explicit merge approval.
