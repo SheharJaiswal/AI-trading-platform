@@ -5,13 +5,15 @@ namespace AiTrading.Application;
 public sealed class DurableRiskMonitor(
     IMarketDataProvider marketData,
     ITradingUnitOfWorkFactory unitOfWorkFactory,
-    Guid portfolioId)
+    Guid portfolioId,
+    IAlertDelivery alertDelivery)
 {
     public async Task CheckOnceAsync(CancellationToken cancellationToken)
     {
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
         var positions = await unitOfWork.Portfolios.GetOpenPositionsAsync(portfolioId, cancellationToken);
         var changed = false;
+        var newAlerts = new List<Alert>();
 
         foreach (var position in positions)
         {
@@ -54,11 +56,36 @@ public sealed class DurableRiskMonitor(
                     bucket.ToString(),
                     receivedAt);
                 if (await unitOfWork.Alerts.TryAddAsync(alert, cancellationToken))
+                {
                     changed = true;
+                    newAlerts.Add(new Alert(
+                        $"{position.Id}:STOP_LOSS:{bucket}",
+                        AlertSeverity.High,
+                        alert.Message,
+                        receivedAt,
+                        position.Symbol));
+                }
             }
         }
 
         if (changed)
             await unitOfWork.CommitAsync(cancellationToken);
+
+        foreach (var alert in newAlerts)
+        {
+            try
+            {
+                await alertDelivery.DeliverAsync(alert, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                // Delivery is advisory to durable monitoring. A channel failure must not
+                // invalidate the committed alert or stop subsequent monitoring iterations.
+            }
+        }
     }
 }
