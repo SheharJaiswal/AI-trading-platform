@@ -1,0 +1,10 @@
+services:
+  api:
+    environment:
+      MarketData__Provider: demo
+      AI__Provider: disabled
+      # For a real provider, inject credentials through your local environment or secret manager.
+      # AngelOne__ApiKey: ${ANGELONE_API_KEY}
+      # AngelOne__AuthorizationToken: ${ANGELONE_AUTHORIZATION_TOKEN}
+      # AI__cloud__Endpoint: ${AI_CLOUD_ENDPOINT}
+      # AI__cloud__ApiKey: ${AI_CLOUD_API_KEY}

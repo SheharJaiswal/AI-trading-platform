@@ -10,12 +10,48 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docs/database/mysql-v1.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_dev"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/AiTrading.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      Persistence__MySql__Enabled: "true"
+      Persistence__MySql__ServerVersion: "8.4.0-mysql"
+      ConnectionStrings__MySql: "Server=mysql;Port=3306;Database=ai_trading;User=ai_trading;Password=ai_trading_dev;"
+      MarketData__Provider: demo
+      AI__Provider: disabled
+      Trading__StartingCash: "1000000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    command: ["sh", "-c", "/app/efbundle --connection \"$${ConnectionStrings__MySql}\" && exec dotnet AiTrading.Api.dll"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep -q '\"status\":\"ok\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "4200:80"
 
 volumes:
   mysql_data:
