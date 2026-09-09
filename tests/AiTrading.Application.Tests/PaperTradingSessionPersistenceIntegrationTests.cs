@@ -36,7 +36,7 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
         Assert.Equal("v5-deterministic", restored.Configuration.StrategyVersion);
         Assert.Equal(250_000m, restored.Configuration.StartingCash);
         Assert.Equal(["TCS", "INFY"], restored.Configuration.Symbols.Select(x => x.Value).ToArray());
-        Assert.Equal(["11536", "1594"], restored.Configuration.Symbols.Select(x => x.InstrumentToken).ToArray());
+        Assert.Equal(["11536", "1594"], restored.Configuration.Symbols.Select(x => x.InstrumentToken ?? string.Empty).ToArray());
 
         var running = restored with
         {
