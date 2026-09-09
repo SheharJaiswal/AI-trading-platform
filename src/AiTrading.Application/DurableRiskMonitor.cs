@@ -6,8 +6,11 @@ public sealed class DurableRiskMonitor(
     IMarketDataProvider marketData,
     ITradingUnitOfWorkFactory unitOfWorkFactory,
     Guid portfolioId,
-    IAlertDelivery alertDelivery)
+    IAlertDelivery alertDelivery,
+    IMonitoringFailureSink? failureSink = null)
 {
+    private readonly IMonitoringFailureSink _failureSink = failureSink ?? new NoopMonitoringFailureSink();
+
     public async Task CheckOnceAsync(CancellationToken cancellationToken)
     {
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
@@ -17,7 +20,26 @@ public sealed class DurableRiskMonitor(
 
         foreach (var position in positions)
         {
-            var quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
+            MarketQuote quote;
+            try
+            {
+                quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _failureSink.Record(new MonitoringFailure(
+                    "MARKET_DATA",
+                    position.Symbol.Value,
+                    "QUOTE_PROVIDER_FAILURE",
+                    ex.Message,
+                    DateTimeOffset.UtcNow));
+                continue;
+            }
+
             var receivedAt = DateTimeOffset.UtcNow;
             var updated = position with
             {
