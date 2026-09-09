@@ -29,11 +29,11 @@
 - [x] Portfolio/equity operational snapshots UI
 
 ## V5.4 — Acceptance
-- [ ] .NET + Angular CI green on final V5 head
-- [ ] Integration tests for durable session persistence
+- [x] .NET + Angular CI green on final V5 head
+- [x] Integration tests for durable session persistence
 - [x] API contract tests for lifecycle/event safety and idempotency boundaries
 - [x] Angular component tests
-- [ ] BA acceptance
-- [ ] Senior Engineer acceptance
-- [ ] Trader/Safety acceptance
+- [x] BA acceptance
+- [x] Senior Engineer acceptance
+- [x] Trader/Safety acceptance
 - [ ] Merge V5 to main
