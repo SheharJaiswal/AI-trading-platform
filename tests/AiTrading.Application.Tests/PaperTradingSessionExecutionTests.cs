@@ -68,13 +68,13 @@ public sealed class PaperTradingSessionExecutionTests
     public async Task Risk_Blocked_Event_Returns_No_Fill_And_Still_Remains_Paper_Only()
     {
         var session = CreateSession(PaperTradingSessionStatus.Running);
-        var paperTrades = new CapturingPaperTradeService(new RiskResult(RiskDecision.Blocked, "risk-limit"), null);
+        var paperTrades = new CapturingPaperTradeService(new RiskResult(RiskDecision.RiskBlocked, "risk-limit"), null);
         var service = new PaperTradingSessionExecutionService(new StubSessionService(session), paperTrades);
 
         var response = await service.ProcessAsync(
             new PaperTradingEventRequest(session.Id, session.Configuration.Symbols[0], 1, "evt-risk"), CancellationToken.None);
 
-        Assert.Equal(RiskDecision.Blocked, response.Risk.Decision);
+        Assert.Equal(RiskDecision.RiskBlocked, response.Risk.Decision);
         Assert.Equal("risk-limit", response.Risk.Reason);
         Assert.Null(response.Fill);
         Assert.Equal("PAPER_ONLY", response.ExecutionMode);
