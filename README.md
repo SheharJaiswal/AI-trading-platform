@@ -26,12 +26,36 @@ The platform is paper-only. Backtests never call broker execution and never muta
 
 ## Run locally
 
+### Full application with Docker Compose
+
+The complete stack runs as three containers: MySQL, the .NET API, and the Angular/Nginx web application. The API applies the committed EF Core migrations before starting, and the web container reverse-proxies `/api` and `/health` to the API.
+
+```bash
+docker compose up --build
+```
+
+Open the dashboard at `http://localhost:4200` and the API health endpoint at `http://localhost:8080/health`.
+
+To stop the stack while retaining MySQL data:
+
+```bash
+docker compose down
+```
+
+To remove the persisted MySQL volume as well:
+
+```bash
+docker compose down -v
+```
+
+### API only
+
 ```bash
 docker compose up -d mysql
 dotnet run --project src/AiTrading.Api
 ```
 
-The default market provider is `demo`. MySQL persistence is enabled through the configured trading persistence connection.
+The default market provider is `demo`. Docker Compose enables MySQL persistence, uses a local demo market-data provider, and keeps AI disabled by default. Provider credentials are not stored in the Compose file.
 
 ## Key endpoints
 
