@@ -15,14 +15,18 @@
 - [x] Deterministic session-event idempotency key
 - [x] Reuse existing durable paper execution/risk boundary
 - [x] Session event API
+- [x] Durable event/risk audit persistence
+- [x] Session audit API for events, orders and fills
 
 ## V5.3 — Operations workspace
 - [x] Paper session configuration UI
 - [x] Lifecycle controls
 - [x] Market-event processing control
 - [x] Explicit paper-only safety labeling
+- [x] Order/fill/risk history API foundation
+- [x] Portfolio/equity query foundation via durable portfolio API
 - [ ] Order/fill/risk history dashboard expansion
-- [ ] Portfolio/equity operational snapshots
+- [ ] Portfolio/equity operational snapshots UI
 
 ## V5.4 — Acceptance
 - [ ] .NET + Angular CI green on final V5 head
