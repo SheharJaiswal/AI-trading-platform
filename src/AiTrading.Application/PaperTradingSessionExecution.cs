@@ -28,7 +28,7 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
             var existing = await uow.PaperTradingEventAudits.GetBySessionAsync(request.SessionId, ct);
             if (!existing.Any(x => x.EventId == request.EventId))
             {
-                await uow.PaperTradingEventAudits.AddAsync(new PaperTradingEventAuditState(Guid.NewGuid(), request.SessionId, request.EventId, orderId, request.Symbol, request.Quantity, result.Risk.Decision.ToString(), result.Risk.Reason, result.Fill?.FillPrice, DateTimeOffset.UtcNow), ct);
+                await uow.PaperTradingEventAudits.AddAsync(new PaperTradingEventAuditState(Guid.NewGuid(), request.SessionId, request.EventId, orderId, request.Symbol, request.Quantity, result.Risk.Decision.ToString(), result.Risk.Reason ?? string.Empty, result.Fill?.FillPrice, DateTimeOffset.UtcNow), ct);
                 await uow.CommitAsync(ct);
             }
         }
