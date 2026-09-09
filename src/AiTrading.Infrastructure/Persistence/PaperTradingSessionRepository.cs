@@ -24,10 +24,10 @@ public sealed class EfPaperTradingSessionRepository(TradingDbContext db) : IPape
 {
     private sealed record SymbolDto(string Value, string? InstrumentToken);
 
-    public Task AddAsync(PaperTradingSessionState session, CancellationToken ct)
+    public async Task AddAsync(PaperTradingSessionState session, CancellationToken ct)
     {
         db.Set<PaperTradingSessionRecord>().Add(ToRecord(session));
-        return Task.CompletedTask;
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<PaperTradingSessionState?> GetAsync(Guid id, CancellationToken ct)
