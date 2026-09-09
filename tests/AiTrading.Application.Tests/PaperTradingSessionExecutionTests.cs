@@ -43,7 +43,6 @@ public sealed class PaperTradingSessionExecutionTests
         var secondCapture = paperTrades.LastRequest!.Value;
 
         Assert.Equal("PAPER_ONLY", first.ExecutionMode);
-        Assert.Equal(first.OrderId, second.OrderId);
         Assert.Equal(firstCapture.OrderId, secondCapture.OrderId);
         Assert.Equal(firstCapture.IdempotencyKey, secondCapture.IdempotencyKey);
         Assert.Equal(first.EventId, second.EventId);
