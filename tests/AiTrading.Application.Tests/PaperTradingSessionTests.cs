@@ -1,0 +1,11 @@
+using AiTrading.Application;
+using AiTrading.Domain;
+namespace AiTrading.Application.Tests;
+public sealed class PaperTradingSessionTests
+{
+    private static PaperTradingSessionConfiguration Config()=>new([new Symbol("TEST","1")],"1m","baseline-v1",10000m);
+    [Fact] public async Task Create_starts_in_draft_and_preserves_configuration(){var repo=new InMemoryPaperTradingSessionRepository();var service=new PaperTradingSessionService(repo);var s=await service.CreateAsync(Config(),CancellationToken.None);Assert.Equal(PaperTradingSessionStatus.Draft,s.Status);Assert.Equal(Config(),s.Configuration);Assert.Equal(s,s is not null?await service.GetAsync(s.Id,CancellationToken.None):null);}
+    [Fact] public async Task Lifecycle_supports_start_pause_resume_stop(){var service=new PaperTradingSessionService(new InMemoryPaperTradingSessionRepository());var s=await service.CreateAsync(Config(),CancellationToken.None);s=await service.TransitionAsync(s.Id,PaperTradingSessionStatus.Running,CancellationToken.None)!;s=await service.TransitionAsync(s!.Id,PaperTradingSessionStatus.Paused,CancellationToken.None)!;s=await service.TransitionAsync(s!.Id,PaperTradingSessionStatus.Running,CancellationToken.None)!;s=await service.TransitionAsync(s!.Id,PaperTradingSessionStatus.Stopped,CancellationToken.None)!;Assert.Equal(PaperTradingSessionStatus.Stopped,s!.Status);}
+    [Fact] public async Task Invalid_transition_is_rejected(){var service=new PaperTradingSessionService(new InMemoryPaperTradingSessionRepository());var s=await service.CreateAsync(Config(),CancellationToken.None);await Assert.ThrowsAsync<InvalidOperationException>(()=>service.TransitionAsync(s.Id,PaperTradingSessionStatus.Paused,CancellationToken.None));}
+    [Theory] [InlineData(0)] [InlineData(-1)] public async Task Non_positive_starting_cash_is_rejected(decimal cash){var service=new PaperTradingSessionService(new InMemoryPaperTradingSessionRepository());await Assert.ThrowsAsync<ArgumentException>(()=>service.CreateAsync(Config() with{StartingCash=cash},CancellationToken.None));}
+}
