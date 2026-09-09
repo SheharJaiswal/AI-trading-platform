@@ -24,6 +24,16 @@ public sealed class PredictionEvaluationTests
   await Assert.ThrowsAsync<InvalidOperationException>(()=>service.RecordOutcomeAsync(new PredictionOutcome(prediction.Id,.01m,t.AddMinutes(-1)),CancellationToken.None));
  }
 
+ [Fact]
+ public async Task Duplicate_outcome_is_rejected()
+ {
+  var repository=new FakeEvaluationRepository(); var service=new PredictionEvaluationService(repository); var t=DateTimeOffset.Parse("2026-01-01T00:00:00Z");
+  var prediction=await service.RecordPredictionAsync("TCS","1h",.01m,.6m,.7m,"model-1",t,CancellationToken.None);
+  var outcome=new PredictionOutcome(prediction.Id,.02m,t.AddHours(1));
+  await service.RecordOutcomeAsync(outcome,CancellationToken.None);
+  await Assert.ThrowsAsync<InvalidOperationException>(()=>service.RecordOutcomeAsync(outcome,CancellationToken.None));
+ }
+
  private sealed class FakeEvaluationRepository : IPredictionEvaluationRepository
  {
   private readonly List<PredictionRecord> predictions=[]; private readonly List<PredictionOutcome> outcomes=[];
