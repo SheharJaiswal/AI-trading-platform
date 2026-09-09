@@ -15,8 +15,6 @@ public sealed class DurableRiskMonitor(
 
         foreach (var position in positions)
         {
-            if (position.StopLoss is null) continue;
-
             var quote = await marketData.GetQuoteAsync(position.Symbol, cancellationToken);
             var receivedAt = DateTimeOffset.UtcNow;
             var updated = position with
@@ -43,7 +41,7 @@ public sealed class DurableRiskMonitor(
                 cancellationToken);
             changed = true;
 
-            if (quote.LastTradedPrice <= position.StopLoss)
+            if (position.StopLoss is not null && quote.LastTradedPrice <= position.StopLoss)
             {
                 var bucket = receivedAt.ToUnixTimeSeconds() / 60;
                 var alert = new AlertState(
