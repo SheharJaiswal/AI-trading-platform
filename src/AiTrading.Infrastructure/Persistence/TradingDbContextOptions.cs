@@ -18,13 +18,15 @@ public static class TradingPersistenceServiceCollectionExtensions
             options.UseMySql(connectionString, serverVersion, mySql =>
                 mySql.MigrationsAssembly(typeof(TradingDbContext).Assembly.GetName().Name)));
         services.AddSingleton<ITradingUnitOfWorkFactory, EfTradingUnitOfWorkFactory>();
+        services.AddSingleton<IAlertDelivery, NoopAlertDelivery>();
 
         var portfolioId = configuration.GetValue<Guid?>("Trading:PortfolioId")
             ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
         services.AddScoped<DurableRiskMonitor>(sp => new DurableRiskMonitor(
             sp.GetRequiredService<IMarketDataProvider>(),
             sp.GetRequiredService<ITradingUnitOfWorkFactory>(),
-            portfolioId));
+            portfolioId,
+            sp.GetRequiredService<IAlertDelivery>()));
         services.AddSingleton(TimeProvider.System);
         services.AddHostedService<DurableRiskMonitoringHostedService>();
 
