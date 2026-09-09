@@ -1,12 +1,93 @@
 using AiTrading.Domain;
+
 namespace AiTrading.Application;
-public sealed record BacktestRunRequest(Symbol Symbol,string Interval,DateTimeOffset Start,DateTimeOffset End,BacktestConfiguration Configuration);
-public sealed record BacktestRunResponse(Guid RunId,string Status,BacktestResult Result,string SimulationLabel);
-public interface IBacktestService { Task<BacktestRunResponse> RunAsync(BacktestRunRequest request,CancellationToken cancellationToken); Task<BacktestRunResponse?> GetAsync(Guid runId,CancellationToken cancellationToken); }
-public sealed class BacktestService(ITradingUnitOfWorkFactory factory,DeterministicBacktestEngine engine):IBacktestService
+
+public sealed record BacktestRunRequest(
+    Symbol Symbol,
+    string Interval,
+    DateTimeOffset Start,
+    DateTimeOffset End,
+    BacktestConfiguration Configuration);
+
+public sealed record BacktestRunResponse(
+    Guid RunId,
+    string Status,
+    BacktestResult Result,
+    string SimulationLabel);
+
+public interface IBacktestService
 {
- public async Task<BacktestRunResponse> RunAsync(BacktestRunRequest request,CancellationToken ct){Validate(request);await using var uow=await factory.CreateAsync(ct);var states=await uow.HistoricalCandles.GetRangeAsync(request.Symbol,request.Interval,request.Start,request.End,ct);var candles=states.Select(x=>x.ToDomain()).ToArray();ValidateDataset(candles,request);var result=engine.Run(request.Symbol,candles,request.Configuration);var id=Guid.NewGuid();await uow.BacktestRuns.AddAsync(new BacktestRunState(id,request.Symbol,request.Interval,request.Start,request.End,request.Configuration,result,DateTimeOffset.UtcNow),ct);var trades=result.Trades.Select(x=>new BacktestTradeAuditState(Guid.NewGuid(),id,x.Timestamp,x.Side.ToString(),x.Quantity,x.Price,x.Fee,x.RiskDecision.ToString(),x.RiskReason)).ToArray();var riskEvents=result.RiskEvents.Select(x=>new BacktestRiskAuditState(Guid.NewGuid(),id,x.Timestamp,x.Decision.ToString(),x.Reason,x.AvailableCash,x.RequestedQuantity)).ToArray();await uow.BacktestAudit.AddAsync(id,trades,riskEvents,ct);await uow.CommitAsync(ct);return new(id,"completed",result,"HISTORICAL_SIMULATION_ONLY");}
- public async Task<BacktestRunResponse?> GetAsync(Guid id,CancellationToken ct){await using var uow=await factory.CreateAsync(ct);var run=await uow.BacktestRuns.GetAsync(id,ct);if(run is null)return null;var audit=await uow.BacktestAudit.GetAsync(id,ct);var trades=audit.Trades.Select(x=>new BacktestTrade(x.Timestamp,Enum.Parse<OrderSide>(x.Side,true),x.Quantity,x.Price,x.Fee,Enum.Parse<RiskDecision>(x.RiskDecision,true),x.RiskReason)).ToArray();var risk=audit.RiskEvents.Select(x=>new BacktestRiskEvent(x.Timestamp,Enum.Parse<RiskDecision>(x.Decision,true),x.Reason,x.AvailableCash,x.RequestedQuantity)).ToArray();var result=run.Result with { Trades=trades, RiskEvents=risk };return new(run.Id,"completed",result,"HISTORICAL_SIMULATION_ONLY");}
- private static void Validate(BacktestRunRequest r){if(string.IsNullOrWhiteSpace(r.Symbol.Value))throw new ArgumentException("Symbol is required.",nameof(r));if(string.IsNullOrWhiteSpace(r.Interval))throw new ArgumentException("Interval is required.",nameof(r));if(r.End<=r.Start)throw new ArgumentException("End must be after Start.",nameof(r));if(r.Configuration.StrategyVersion!="baseline-v1")throw new ArgumentException("Unsupported strategy version.",nameof(r));}
- private static void ValidateDataset(IReadOnlyList<HistoricalCandle> candles,BacktestRunRequest r){if(candles.Count==0)throw new InvalidOperationException("No historical data is available for the requested range.");if(candles.Any(x=>x.Symbol!=r.Symbol))throw new InvalidOperationException("Historical dataset contains a symbol mismatch.");if(candles.Zip(candles.Skip(1),(a,b)=>(a,b)).Any(p=>p.a.Timestamp>=p.b.Timestamp))throw new InvalidOperationException("Historical dataset contains duplicate or out-of-order timestamps.");if(candles.Any(x=>x.Open<=0||x.High<=0||x.Low<=0||x.Close<=0||x.High<x.Low))throw new InvalidOperationException("Historical dataset contains invalid OHLC values.");}
+    Task<BacktestRunResponse> RunAsync(BacktestRunRequest request, CancellationToken cancellationToken);
+    Task<BacktestRunResponse?> GetAsync(Guid runId, CancellationToken cancellationToken);
+}
+
+public sealed class BacktestService(
+    ITradingUnitOfWorkFactory factory,
+    DeterministicBacktestEngine engine) : IBacktestService
+{
+    public async Task<BacktestRunResponse> RunAsync(BacktestRunRequest request, CancellationToken ct)
+    {
+        Validate(request);
+        await using var uow = await factory.CreateAsync(ct);
+        var states = await uow.HistoricalCandles.GetRangeAsync(request.Symbol, request.Interval, request.Start, request.End, ct);
+        var candles = states.Select(x => x.ToDomain()).ToArray();
+        ValidateDataset(candles, request);
+        var result = engine.Run(request.Symbol, candles, request.Configuration);
+        var id = Guid.NewGuid();
+        await uow.BacktestRuns.AddAsync(
+            new BacktestRunState(id, request.Symbol, request.Interval, request.Start, request.End, request.Configuration, result, DateTimeOffset.UtcNow), ct);
+        var trades = result.Trades.Select(x => new BacktestTradeAuditState(
+            Guid.NewGuid(), id, x.Timestamp, x.Side.ToString(), x.Quantity, x.Price, x.Fee, x.RiskDecision.ToString(), x.RiskReason)).ToArray();
+        var riskEvents = result.RiskEvents.Select(x => new BacktestRiskAuditState(
+            Guid.NewGuid(), id, x.Timestamp, x.Decision.ToString(), x.Reason, x.AvailableCash, x.RequestedQuantity)).ToArray();
+        await uow.BacktestAudit.AddAsync(id, trades, riskEvents, ct);
+        await uow.CommitAsync(ct);
+        return new(id, "completed", result, "HISTORICAL_SIMULATION_ONLY");
+    }
+
+    public async Task<BacktestRunResponse?> GetAsync(Guid id, CancellationToken ct)
+    {
+        await using var uow = await factory.CreateAsync(ct);
+        var run = await uow.BacktestRuns.GetAsync(id, ct);
+        if (run is null) return null;
+        var audit = await uow.BacktestAudit.GetAsync(id, ct);
+        var trades = audit.Trades.Select(x => new BacktestTrade(
+            x.Timestamp,
+            Enum.Parse<OrderSide>(x.Side, true),
+            x.Quantity,
+            x.Price,
+            x.Fee,
+            Enum.Parse<RiskDecision>(x.RiskDecision, true),
+            x.RiskReason)).ToArray();
+        var risk = audit.RiskEvents.Select(x => new BacktestRiskEvent(
+            x.Timestamp,
+            Enum.Parse<RiskDecision>(x.Decision, true),
+            x.Reason,
+            x.AvailableCash,
+            x.RequestedQuantity)).ToArray();
+        var result = run.Result with { Trades = trades, RiskEvents = risk };
+        return new(run.Id, "completed", result, "HISTORICAL_SIMULATION_ONLY");
+    }
+
+    private static void Validate(BacktestRunRequest r)
+    {
+        if (string.IsNullOrWhiteSpace(r.Symbol.Value)) throw new ArgumentException("Symbol is required.", nameof(r));
+        if (string.IsNullOrWhiteSpace(r.Interval)) throw new ArgumentException("Interval is required.", nameof(r));
+        if (r.End <= r.Start) throw new ArgumentException("End must be after Start.", nameof(r));
+        if (r.Configuration.StrategyVersion != "baseline-v1") throw new ArgumentException("Unsupported strategy version.", nameof(r));
+    }
+
+    private static void ValidateDataset(IReadOnlyList<HistoricalCandle> candles, BacktestRunRequest r)
+    {
+        if (candles.Count == 0) throw new InvalidOperationException("No historical data is available for the requested range.");
+        if (candles.Any(x => x.Symbol != r.Symbol)) throw new InvalidOperationException("Historical dataset contains a symbol mismatch.");
+        if (candles.Any(x => !string.Equals(x.Interval, r.Interval, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Historical dataset contains an interval mismatch.");
+        if (candles.Any(x => !string.Equals(x.Symbol.InstrumentToken, r.Symbol.InstrumentToken, StringComparison.Ordinal)))
+            throw new InvalidOperationException("Historical dataset contains an instrument identity mismatch.");
+        if (candles.Zip(candles.Skip(1), (a, b) => (a, b)).Any(p => p.a.Timestamp >= p.b.Timestamp))
+            throw new InvalidOperationException("Historical dataset contains duplicate or out-of-order timestamps.");
+        if (candles.Any(x => x.Open <= 0 || x.High <= 0 || x.Low <= 0 || x.Close <= 0 || x.High < Math.Max(x.Open, x.Close) || x.Low > Math.Min(x.Open, x.Close) || x.High < x.Low))
+            throw new InvalidOperationException("Historical dataset contains invalid OHLC values.");
+    }
 }
