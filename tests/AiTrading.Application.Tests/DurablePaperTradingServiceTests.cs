@@ -88,6 +88,7 @@ public sealed class DurablePaperTradingServiceTests
         public FakeOrderRepository OrdersStore { get; } = new();
         public IPortfolioRepository Portfolios => PortfolioStore;
         public IOrderRepository Orders => OrdersStore;
+        public IPaperTradingEventAuditRepository PaperTradingEventAudits { get; } = new NoOpPaperTradingEventAuditRepository();
         public IAlertRepository Alerts { get; } = new NoOpAlertRepository();
         public IMarketDataSnapshotRepository MarketDataSnapshots { get; } = new NoOpMarketDataRepository();
         public IHistoricalCandleRepository HistoricalCandles { get; } = new NoOpHistoricalCandleRepository();
@@ -112,9 +113,19 @@ public sealed class DurablePaperTradingServiceTests
         public void Add(OrderState order, FillState? fill) => orders[order.Id] = (order, fill);
         public Task<OrderState?> GetAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult(orders.TryGetValue(orderId, out var value) ? value.Order : null);
         public Task<OrderState?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken) => Task.FromResult(orders.Values.Select(x => x.Order).SingleOrDefault(x => x.IdempotencyKey == idempotencyKey));
+        public Task<IReadOnlyList<OrderState>> GetByIdempotencyPrefixAsync(string prefix, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<OrderState>>(orders.Values.Select(x => x.Order).Where(x => x.IdempotencyKey.StartsWith(prefix, StringComparison.Ordinal)).ToArray());
+        public Task<IReadOnlyList<FillState>> GetFillsByOrderIdsAsync(IReadOnlyList<Guid> orderIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<FillState>>(orders.Values.Where(x => x.Fill is not null && orderIds.Contains(x.Order.Id)).Select(x => x.Fill!).ToArray());
         public Task AddAsync(OrderState order, CancellationToken cancellationToken) { orders[order.Id] = (order, null); return Task.CompletedTask; }
         public Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult(orders.TryGetValue(orderId, out var value) ? value.Fill : null);
         public Task AddFillAsync(FillState fill, CancellationToken cancellationToken) { var order = orders[fill.OrderId].Order; orders[fill.OrderId] = (order, fill); return Task.CompletedTask; }
+    }
+
+    private sealed class NoOpPaperTradingEventAuditRepository : IPaperTradingEventAuditRepository
+    {
+        public Task AddAsync(PaperTradingEventAuditState audit, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<PaperTradingEventAuditState>> GetBySessionAsync(Guid sessionId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<PaperTradingEventAuditState>>([]);
     }
 
     private sealed class NoOpAlertRepository : IAlertRepository
