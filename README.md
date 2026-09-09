@@ -12,7 +12,7 @@ A spec-driven AI-assisted trading platform built around deterministic financial 
 - Candlestick pattern detection
 - Baseline deterministic recommendation and risk engines
 - Paper-only order execution with portfolio accounting
-- Idempotent risk alerts through a background worker
+- Idempotent risk alerts through a restart-safe background monitor
 - Provider-neutral AI gateway with disabled/local/cloud configuration
 - Deterministic chronological backtesting with replay-prefix/no-lookahead enforcement
 - Explicit fees, slippage, sizing and strategy-version assumptions
@@ -56,6 +56,12 @@ dotnet run --project src/AiTrading.Api
 ```
 
 The default market provider is `demo`. Docker Compose enables MySQL persistence, uses a local demo market-data provider, and keeps AI disabled by default. Provider credentials are not stored in the Compose file.
+
+### Background risk monitoring
+
+When MySQL persistence is enabled, the API starts a restart-safe background risk monitor. It checks open positions, refreshes market prices, stores market-data snapshots, and raises deduplicated stop-loss alerts. The monitor does not submit live or broker orders and does not automatically close positions in this delivery slice.
+
+Configure the cadence with `Monitoring:RiskIntervalSeconds`; the Docker Compose default is 60 seconds.
 
 ## Key endpoints
 

@@ -30,6 +30,7 @@ services:
       MarketData__Provider: demo
       AI__Provider: disabled
       Trading__StartingCash: "1000000"
+      Monitoring__RiskIntervalSeconds: "60"
     depends_on:
       mysql:
         condition: service_healthy
