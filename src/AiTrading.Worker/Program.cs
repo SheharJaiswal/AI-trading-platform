@@ -22,7 +22,8 @@ if (persistence.Enabled)
         new DurableRiskMonitor(
             sp.GetRequiredService<IMarketDataProvider>(),
             sp.GetRequiredService<ITradingUnitOfWorkFactory>(),
-            portfolioId).CheckOnceAsync);
+            portfolioId,
+            sp.GetRequiredService<IAlertDelivery>()).CheckOnceAsync);
 }
 else
 {

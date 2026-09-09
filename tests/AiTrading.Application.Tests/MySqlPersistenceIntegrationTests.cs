@@ -135,7 +135,8 @@ public sealed class MySqlPersistenceIntegrationTests
         var monitor = new DurableRiskMonitor(
             new FakeMarketDataProvider(new MarketQuote(new Symbol("TCS", "11536"), "NSE", "11536", providerTimestamp, 93m, 94m, 91m, 92m, 92m, 10_000, "integration")),
             new TestUnitOfWorkFactory(options),
-            portfolioId);
+            portfolioId,
+            new NoopAlertDelivery());
 
         await monitor.CheckOnceAsync(CancellationToken.None);
 
