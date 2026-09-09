@@ -35,6 +35,3 @@ public sealed class EfPredictionEvaluationRepository(IDbContextFactory<TradingDb
         return await query.OrderBy(x => x.outcome.OutcomeTimestamp).Select(x => new PredictionEvaluation(x.prediction.Id, x.prediction.Symbol, x.prediction.Horizon, x.prediction.ExpectedReturn, x.outcome.ActualReturn, Math.Sign(x.prediction.ExpectedReturn) == Math.Sign(x.outcome.ActualReturn), x.prediction.DataTimestamp, x.outcome.OutcomeTimestamp, x.prediction.ModelVersion)).ToListAsync(cancellationToken);
     }
 }
-
-public sealed class PredictionRecordEntity { public Guid Id { get; set; } public string Symbol { get; set; } = ""; public string Horizon { get; set; } = ""; public decimal ExpectedReturn { get; set; } public decimal ProbabilityPositive { get; set; } public decimal Confidence { get; set; } public string ModelVersion { get; set; } = ""; public DateTimeOffset DataTimestamp { get; set; } public DateTimeOffset RecordedAt { get; set; } }
-public sealed class PredictionOutcomeEntity { public Guid PredictionId { get; set; } public decimal ActualReturn { get; set; } public DateTimeOffset OutcomeTimestamp { get; set; } }
