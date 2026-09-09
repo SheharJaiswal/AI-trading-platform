@@ -91,6 +91,8 @@ public sealed class DurablePaperTradingServiceTests
         public IAlertRepository Alerts { get; } = new NoOpAlertRepository();
         public IMarketDataSnapshotRepository MarketDataSnapshots { get; } = new NoOpMarketDataRepository();
         public IHistoricalCandleRepository HistoricalCandles { get; } = new NoOpHistoricalCandleRepository();
+        public IBacktestRunRepository BacktestRuns { get; } = new NoOpBacktestRunRepository();
+        public IBacktestAuditRepository BacktestAudit { get; } = new NoOpBacktestAuditRepository();
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
@@ -131,5 +133,18 @@ public sealed class DurablePaperTradingServiceTests
     {
         public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<HistoricalCandleState>> GetRangeAsync(Symbol symbol, string interval, DateTimeOffset start, DateTimeOffset end, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<HistoricalCandleState>>([]);
+    }
+
+    private sealed class NoOpBacktestRunRepository : IBacktestRunRepository
+    {
+        public Task AddAsync(BacktestRunState run, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<BacktestRunState?> GetAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BacktestRunState?>(null);
+    }
+
+    private sealed class NoOpBacktestAuditRepository : IBacktestAuditRepository
+    {
+        public Task AddAsync(Guid runId, IReadOnlyList<BacktestTradeAuditState> trades, IReadOnlyList<BacktestRiskAuditState> riskEvents, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<(IReadOnlyList<BacktestTradeAuditState> Trades, IReadOnlyList<BacktestRiskAuditState> RiskEvents)> GetAsync(Guid runId, CancellationToken cancellationToken) =>
+            Task.FromResult<(IReadOnlyList<BacktestTradeAuditState>, IReadOnlyList<BacktestRiskAuditState>)>(([], []));
     }
 }
