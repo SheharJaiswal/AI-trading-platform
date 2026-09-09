@@ -1,0 +1,4 @@
+symbol,instrumentToken,interval,timestamp,open,high,low,close,volume,source,receivedAt
+TEST,1,1d,2026-01-01T00:00:00+00:00,100,102,99,101,1000,fixture,2026-01-01T00:01:00+00:00
+TEST,1,1d,2026-01-02T00:00:00+00:00,101,103,100,102,1100,fixture,2026-01-02T00:01:00+00:00
+TEST,1,1d,2026-01-03T00:00:00+00:00,102,104,101,103,1200,fixture,2026-01-03T00:01:00+00:00
