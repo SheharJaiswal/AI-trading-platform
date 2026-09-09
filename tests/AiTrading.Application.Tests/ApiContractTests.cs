@@ -84,6 +84,35 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         Assert.Equal(fake.FirstOrderId, fake.LastOrderId);
     }
 
+    [Fact]
+    public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
+    {
+        using var client = factory.CreateClient();
+        var routeId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        using var content = new StringContent($"{{\"sessionId\":\"{requestId}\",\"symbol\":{{\"value\":\"TCS\"}},\"quantity\":1,\"eventId\":\"evt-1\"}}", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync($"/api/paper-sessions/{routeId}/events", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("SESSION_ID_MISMATCH", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
+    public async Task PaperSession_Event_Requires_Durable_Persistence()
+    {
+        using var client = factory.CreateClient();
+        var sessionId = Guid.NewGuid();
+        using var content = new StringContent($"{{\"sessionId\":\"{sessionId}\",\"symbol\":{{\"value\":\"TCS\"}},\"quantity\":1,\"eventId\":\"evt-1\"}}", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/events", content);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
     private sealed class FakePaperTradeService : IPaperTradeService
     {
         public int ExecutionCount { get; private set; }
