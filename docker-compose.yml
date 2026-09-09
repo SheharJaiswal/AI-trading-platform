@@ -31,6 +31,8 @@ services:
       AI__Provider: disabled
       Trading__StartingCash: "1000000"
       Monitoring__RiskIntervalSeconds: "60"
+      AutonomousLoop__Quantity: "1"
+      AutonomousLoop__MaxCandidates: "1"
     depends_on:
       mysql:
         condition: service_healthy
