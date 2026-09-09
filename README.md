@@ -17,6 +17,8 @@ A spec-driven AI-assisted trading platform built around deterministic financial 
 - Deterministic chronological backtesting with replay-prefix/no-lookahead enforcement
 - Explicit fees, slippage, sizing and strategy-version assumptions
 - Persisted backtest run configuration, result, simulated trades and risk ledger
+- Prediction/outcome recording and deterministic evaluation metrics
+- Deterministic autonomous paper-session cycle with ranked candidates and no-decision outcomes
 - Angular research, paper-trading and backtesting workspaces
 - OpenAPI, health endpoint and automated .NET + Angular CI
 
@@ -63,17 +65,28 @@ When MySQL persistence is enabled, the API starts a restart-safe background risk
 
 Configure the cadence with `Monitoring:RiskIntervalSeconds`; the Docker Compose default is 60 seconds.
 
+### Autonomous paper cycle
+
+A running paper session can execute one deterministic autonomous cycle through `POST /api/paper-sessions/{id}/run-cycle`. The cycle scans configured symbols, ranks recommendations deterministically, and only sends a BUY candidate through the existing paper execution and risk boundary. HOLD/NoDecision candidates do not create orders.
+
+Configure `AutonomousLoop:Quantity` and `AutonomousLoop:MaxCandidates`. The Compose defaults are 1 for both. The cycle is deliberately an explicit operation in this delivery slice; always-on scheduling and market-hours rules remain separate business decisions.
+
 ## Key endpoints
 
 - `GET /health`
 - `GET /api/market/{symbol}/quote?instrumentToken=...`
 - `GET /api/recommendations/{symbol}?instrumentToken=...`
 - `POST /api/paper-trades/{symbol}?instrumentToken=...&quantity=...`
+- `POST /api/paper-sessions/{id}/run-cycle`
 - `POST /api/ai/research`
 - `GET /api/portfolio`
 - `GET /api/alerts`
 - `POST /api/backtests`
 - `GET /api/backtests/{runId}`
+- `POST /api/evaluations/predictions`
+- `POST /api/evaluations/outcomes`
+- `GET /api/evaluations`
+- `GET /api/evaluations/metrics`
 
 ## Backtesting workflow
 
