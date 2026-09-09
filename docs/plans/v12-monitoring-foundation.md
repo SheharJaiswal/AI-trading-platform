@@ -5,7 +5,6 @@
 The first implementation slice closes the safe operational part of FR-11 by recording every durable monitoring execution as a run with a lifecycle outcome.
 
 Implemented:
-
 - `Running`, `Completed`, `PartiallyFailed`, and `Failed` run states.
 - Durable start/completion timestamps.
 - Position and provider-failure counts.
