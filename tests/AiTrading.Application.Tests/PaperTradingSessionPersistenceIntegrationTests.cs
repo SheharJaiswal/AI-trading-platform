@@ -15,7 +15,7 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
         await using var db = await CreateMigratedContextAsync();
         var repository = new EfPaperTradingSessionRepository(db);
         var id = Guid.NewGuid();
-        var created = DateTimeOffset.UtcNow;
+        var created = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
         var session = new PaperTradingSessionState(
             id,
             new PaperTradingSessionConfiguration(
@@ -58,7 +58,7 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
         var sessionId = Guid.NewGuid();
         var eventId = $"integration-{Guid.NewGuid():N}";
         var orderId = Guid.NewGuid();
-        var now = DateTimeOffset.UtcNow;
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
 
         db.Set<PaperTradingSessionRecord>().Add(new PaperTradingSessionRecord
         {
@@ -102,6 +102,9 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
 
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
+
+    private static DateTimeOffset TruncateToMySqlMicroseconds(DateTimeOffset value)
+        => new(value.Ticks - (value.Ticks % TimeSpan.TicksPerMicrosecond), value.Offset);
 
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
     {
