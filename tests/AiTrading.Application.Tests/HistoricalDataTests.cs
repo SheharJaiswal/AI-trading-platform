@@ -11,7 +11,7 @@ public sealed class HistoricalDataTests
     {
         var result = HistoricalDataValidator.Validate([
             Candle(DateTimeOffset.Parse("2026-01-01T00:00:00Z")),
-            Candle(DateTimeOffset.Parse("2026-01-02T00:00:00Z"), 103m)
+            Candle(DateTimeOffset.Parse("2026-01-02T00:00:00Z"), 101.5m)
         ]);
 
         Assert.True(result.IsValid);
