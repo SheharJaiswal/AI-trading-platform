@@ -25,14 +25,14 @@
 - [x] Explicit paper-only safety labeling
 - [x] Order/fill/risk history API foundation
 - [x] Portfolio/equity query foundation via durable portfolio API
-- [ ] Order/fill/risk history dashboard expansion
-- [ ] Portfolio/equity operational snapshots UI
+- [x] Order/fill/risk history dashboard expansion
+- [x] Portfolio/equity operational snapshots UI
 
 ## V5.4 — Acceptance
 - [ ] .NET + Angular CI green on final V5 head
 - [ ] Integration tests for durable session persistence
-- [ ] API tests for lifecycle/event idempotency
-- [ ] Angular component tests
+- [x] API contract tests for lifecycle/event safety and idempotency boundaries
+- [x] Angular component tests
 - [ ] BA acceptance
 - [ ] Senior Engineer acceptance
 - [ ] Trader/Safety acceptance
