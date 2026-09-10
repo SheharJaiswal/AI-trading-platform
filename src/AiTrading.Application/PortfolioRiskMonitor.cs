@@ -1,9 +1,9 @@
 namespace AiTrading.Application;
 
 public sealed record PortfolioRiskMonitorOptions(
-    decimal MaxPositionWeight = 0.25m,
-    decimal MaxGrossExposure = 1.00m,
-    decimal MaxDrawdown = 0.10m);
+    decimal? MaxPositionWeight = null,
+    decimal? MaxGrossExposure = null,
+    decimal? MaxDrawdown = null);
 
 public enum PortfolioRiskEventType
 {
@@ -41,25 +41,31 @@ public sealed class PortfolioRiskMonitor(PortfolioRiskMonitorOptions options) : 
         if (peakEquity <= 0m) peakEquity = portfolioEquity;
 
         var events = new List<PortfolioRiskEvent>();
-        var grossExposure = positionMarketValues.Values.Sum(Math.Abs);
+        var grossExposure = positionMarketValues.Values.Sum(value => Math.Abs(value));
         var grossRatio = grossExposure / portfolioEquity;
 
-        if (grossRatio > options.MaxGrossExposure)
-            events.Add(new(PortfolioRiskEventType.GrossExposure, null, grossRatio, options.MaxGrossExposure,
-                $"Gross exposure {grossRatio:P2} exceeds configured limit {options.MaxGrossExposure:P2}.", observedAt));
+        if (options.MaxGrossExposure is { } maxGrossExposure && grossRatio > maxGrossExposure)
+            events.Add(new(PortfolioRiskEventType.GrossExposure, null, grossRatio, maxGrossExposure,
+                $"Gross exposure {grossRatio:P2} exceeds configured limit {maxGrossExposure:P2}.", observedAt));
 
-        foreach (var position in positionMarketValues)
+        if (options.MaxPositionWeight is { } maxPositionWeight)
         {
-            var weight = Math.Abs(position.Value) / portfolioEquity;
-            if (weight > options.MaxPositionWeight)
-                events.Add(new(PortfolioRiskEventType.PositionConcentration, position.Key, weight, options.MaxPositionWeight,
-                    $"Position {position.Key} weight {weight:P2} exceeds configured limit {options.MaxPositionWeight:P2}.", observedAt));
+            foreach (var position in positionMarketValues)
+            {
+                var weight = Math.Abs(position.Value) / portfolioEquity;
+                if (weight > maxPositionWeight)
+                    events.Add(new(PortfolioRiskEventType.PositionConcentration, position.Key, weight, maxPositionWeight,
+                        $"Position {position.Key} weight {weight:P2} exceeds configured limit {maxPositionWeight:P2}.", observedAt));
+            }
         }
 
-        var drawdown = Math.Max(0m, (peakEquity - portfolioEquity) / peakEquity);
-        if (drawdown > options.MaxDrawdown)
-            events.Add(new(PortfolioRiskEventType.Drawdown, null, drawdown, options.MaxDrawdown,
-                $"Portfolio drawdown {drawdown:P2} exceeds configured limit {options.MaxDrawdown:P2}.", observedAt));
+        if (options.MaxDrawdown is { } maxDrawdown)
+        {
+            var drawdown = Math.Max(0m, (peakEquity - portfolioEquity) / peakEquity);
+            if (drawdown > maxDrawdown)
+                events.Add(new(PortfolioRiskEventType.Drawdown, null, drawdown, maxDrawdown,
+                    $"Portfolio drawdown {drawdown:P2} exceeds configured limit {maxDrawdown:P2}.", observedAt));
+        }
 
         return events;
     }
