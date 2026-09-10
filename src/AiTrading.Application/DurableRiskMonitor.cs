@@ -9,9 +9,10 @@ public sealed class DurableRiskMonitor(
     ITradingUnitOfWorkFactory unitOfWorkFactory,
     Guid portfolioId,
     IAlertDelivery alertDelivery,
-    PortfolioRiskMonitor portfolioRiskMonitor,
+    PortfolioRiskMonitor? portfolioRiskMonitor = null,
     IMonitoringFailureSink? failureSink = null)
 {
+    private readonly PortfolioRiskMonitor _portfolioRiskMonitor = portfolioRiskMonitor ?? new PortfolioRiskMonitor(new PortfolioRiskMonitoringOptions());
     private readonly IMonitoringFailureSink _failureSink = failureSink ?? new NoopMonitoringFailureSink();
 
     public async Task<MonitoringCheckSummary> CheckOnceAsync(CancellationToken cancellationToken)
@@ -42,37 +43,22 @@ public sealed class DurableRiskMonitor(
             catch (Exception ex)
             {
                 failureCount++;
-                _failureSink.Record(new MonitoringFailure(
-                    "MARKET_DATA",
-                    position.Symbol.Value,
-                    "QUOTE_PROVIDER_FAILURE",
-                    ex.Message,
-                    DateTimeOffset.UtcNow));
+                _failureSink.Record(new MonitoringFailure("MARKET_DATA", position.Symbol.Value, "QUOTE_PROVIDER_FAILURE", ex.Message, DateTimeOffset.UtcNow));
                 continue;
             }
 
             successCount++;
             prices[position.Symbol] = quote.LastTradedPrice;
             var receivedAt = DateTimeOffset.UtcNow;
-            var updated = position with
-            {
-                CurrentMarketPrice = quote.LastTradedPrice,
-                UpdatedAt = receivedAt
-            };
+            var updated = position with { CurrentMarketPrice = quote.LastTradedPrice, UpdatedAt = receivedAt };
             await unitOfWork.Portfolios.SavePositionAsync(updated, cancellationToken);
-            await unitOfWork.MarketDataSnapshots.AddAsync(
-                new MarketDataSnapshotState(
-                    Guid.NewGuid(), quote.Symbol, quote.InstrumentToken, quote.Source, quote.Exchange,
-                    quote.Timestamp, receivedAt, quote.Open, quote.High, quote.Low, quote.Close,
-                    quote.LastTradedPrice, quote.Volume), cancellationToken);
+            await unitOfWork.MarketDataSnapshots.AddAsync(new MarketDataSnapshotState(Guid.NewGuid(), quote.Symbol, quote.InstrumentToken, quote.Source, quote.Exchange, quote.Timestamp, receivedAt, quote.Open, quote.High, quote.Low, quote.Close, quote.LastTradedPrice, quote.Volume), cancellationToken);
             changed = true;
 
             if (position.StopLoss is not null && quote.LastTradedPrice <= position.StopLoss)
             {
                 var bucket = receivedAt.ToUnixTimeSeconds() / 60;
-                var alert = new AlertState(
-                    Guid.NewGuid(), position.Id, position.Symbol, "STOP_LOSS", AlertSeverity.High,
-                    $"Stop loss breached for {position.Symbol} at {quote.LastTradedPrice}.", bucket.ToString(), receivedAt);
+                var alert = new AlertState(Guid.NewGuid(), position.Id, position.Symbol, "STOP_LOSS", AlertSeverity.High, $"Stop loss breached for {position.Symbol} at {quote.LastTradedPrice}.", bucket.ToString(), receivedAt);
                 if (await unitOfWork.Alerts.TryAddAsync(alert, cancellationToken))
                 {
                     changed = true;
@@ -81,42 +67,22 @@ public sealed class DurableRiskMonitor(
             }
         }
 
-        var domainPositions = positions
-            .Select(position => new Position(
-                position.Id,
-                position.Symbol,
-                position.Quantity,
-                position.AverageEntryPrice,
-                position.StopLoss))
-            .ToArray();
+        var domainPositions = positions.Select(position => new Position(position.Id, position.Symbol, position.Quantity, position.AverageEntryPrice, position.StopLoss)).ToArray();
         var unrealizedPnl = domainPositions.Sum(position =>
         {
             var price = prices.GetValueOrDefault(position.Symbol, position.AverageEntryPrice);
             return (price - position.AverageEntryPrice) * position.Quantity;
         });
         var portfolio = new Portfolio(portfolioState.Cash, domainPositions, unrealizedPnl, portfolioState.RealizedPnl);
-        var riskEvents = portfolioRiskMonitor.Evaluate(portfolio, prices, 0m);
+        var riskEvents = _portfolioRiskMonitor.Evaluate(portfolio, prices, 0m);
         var riskBucket = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
         foreach (var riskEvent in riskEvents)
         {
-            var alert = new AlertState(
-                Guid.NewGuid(),
-                null,
-                riskEvent.Symbol,
-                riskEvent.Type,
-                riskEvent.Severity,
-                riskEvent.Message,
-                riskEvent.Symbol is null ? riskBucket.ToString() : $"{riskBucket}:{riskEvent.Symbol.Value}",
-                riskEvent.Timestamp);
+            var alert = new AlertState(Guid.NewGuid(), null, riskEvent.Symbol, riskEvent.Type, riskEvent.Severity, riskEvent.Message, riskEvent.Symbol is null ? riskBucket.ToString() : $"{riskBucket}:{riskEvent.Symbol.Value}", riskEvent.Timestamp);
             if (await unitOfWork.Alerts.TryAddAsync(alert, cancellationToken))
             {
                 changed = true;
-                newAlerts.Add(new Alert(
-                    $"PORTFOLIO:{riskEvent.Type}:{riskBucket}:{riskEvent.Symbol?.Value ?? "PORTFOLIO"}",
-                    riskEvent.Severity,
-                    riskEvent.Message,
-                    riskEvent.Timestamp,
-                    riskEvent.Symbol));
+                newAlerts.Add(new Alert($"PORTFOLIO:{riskEvent.Type}:{riskBucket}:{riskEvent.Symbol?.Value ?? "PORTFOLIO"}", riskEvent.Severity, riskEvent.Message, riskEvent.Timestamp, riskEvent.Symbol));
             }
         }
 
@@ -125,19 +91,9 @@ public sealed class DurableRiskMonitor(
 
         foreach (var alert in newAlerts)
         {
-            try
-            {
-                await alertDelivery.DeliverAsync(alert, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch
-            {
-                // Delivery is advisory to durable monitoring. A channel failure must not
-                // invalidate the committed alert or stop subsequent monitoring iterations.
-            }
+            try { await alertDelivery.DeliverAsync(alert, cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch { }
         }
 
         return new MonitoringCheckSummary(positions.Count, successCount, failureCount);
