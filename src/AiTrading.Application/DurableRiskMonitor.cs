@@ -9,6 +9,7 @@ public sealed class DurableRiskMonitor(
     ITradingUnitOfWorkFactory unitOfWorkFactory,
     Guid portfolioId,
     IAlertDelivery alertDelivery,
+    PortfolioRiskMonitor portfolioRiskMonitor,
     IMonitoringFailureSink? failureSink = null)
 {
     private readonly IMonitoringFailureSink _failureSink = failureSink ?? new NoopMonitoringFailureSink();
@@ -16,9 +17,14 @@ public sealed class DurableRiskMonitor(
     public async Task<MonitoringCheckSummary> CheckOnceAsync(CancellationToken cancellationToken)
     {
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
+        var portfolioState = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
+        if (portfolioState is null)
+            return new MonitoringCheckSummary(0, 0, 0);
+
         var positions = await unitOfWork.Portfolios.GetOpenPositionsAsync(portfolioId, cancellationToken);
         var changed = false;
         var newAlerts = new List<Alert>();
+        var prices = new Dictionary<Symbol, decimal>();
         var successCount = 0;
         var failureCount = 0;
 
@@ -46,6 +52,7 @@ public sealed class DurableRiskMonitor(
             }
 
             successCount++;
+            prices[position.Symbol] = quote.LastTradedPrice;
             var receivedAt = DateTimeOffset.UtcNow;
             var updated = position with
             {
@@ -71,6 +78,45 @@ public sealed class DurableRiskMonitor(
                     changed = true;
                     newAlerts.Add(new Alert($"{position.Id}:STOP_LOSS:{bucket}", AlertSeverity.High, alert.Message, receivedAt, position.Symbol));
                 }
+            }
+        }
+
+        var domainPositions = positions
+            .Select(position => new Position(
+                position.Id,
+                position.Symbol,
+                position.Quantity,
+                position.AverageEntryPrice,
+                position.StopLoss))
+            .ToArray();
+        var unrealizedPnl = domainPositions.Sum(position =>
+        {
+            var price = prices.GetValueOrDefault(position.Symbol, position.AverageEntryPrice);
+            return (price - position.AverageEntryPrice) * position.Quantity;
+        });
+        var portfolio = new Portfolio(portfolioState.Cash, domainPositions, unrealizedPnl, portfolioState.RealizedPnl);
+        var riskEvents = portfolioRiskMonitor.Evaluate(portfolio, prices, 0m);
+        var riskBucket = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+        foreach (var riskEvent in riskEvents)
+        {
+            var alert = new AlertState(
+                Guid.NewGuid(),
+                null,
+                riskEvent.Symbol,
+                riskEvent.Type,
+                riskEvent.Severity,
+                riskEvent.Message,
+                riskEvent.Symbol is null ? riskBucket.ToString() : $"{riskBucket}:{riskEvent.Symbol.Value}",
+                riskEvent.Timestamp);
+            if (await unitOfWork.Alerts.TryAddAsync(alert, cancellationToken))
+            {
+                changed = true;
+                newAlerts.Add(new Alert(
+                    $"PORTFOLIO:{riskEvent.Type}:{riskBucket}:{riskEvent.Symbol?.Value ?? "PORTFOLIO"}",
+                    riskEvent.Severity,
+                    riskEvent.Message,
+                    riskEvent.Timestamp,
+                    riskEvent.Symbol));
             }
         }
 
