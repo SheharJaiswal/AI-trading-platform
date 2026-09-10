@@ -15,4 +15,5 @@ export interface BacktestRiskEvent{timestamp:string;decision:string;reason?:stri
 export interface BacktestEquityPoint{timestamp:string;cash:number;positionValue:number;equity:number}
 export interface BacktestResult{startingCash:number;endingCash:number;returnPercent:number;maxDrawdownPercent:number;trades:BacktestTrade[];equityCurve:BacktestEquityPoint[];riskEvents:BacktestRiskEvent[];simulationOnly?:boolean;winCount?:number;lossCount?:number}
 export interface BacktestResponse{runId:string;status:string;result:BacktestResult;simulationLabel:string}
+export interface EvaluationMetrics{total:number;evaluated:number;wins:number;losses:number;directionalAccuracy:number;cumulativeReturn:number;maxDrawdown:number;unitPnl:number}
 export interface ApiError{errorCode?:string;message?:string;risk?:RiskResult;[key:string]:unknown}
