@@ -4,6 +4,7 @@ import { PaperTradeComponent } from './paper-trade.component';
 import { ResearchComponent } from './research.component';
 import { BacktestComponent } from './backtest.component';
 import { PaperSessionComponent } from './paper-session.component';
+import { EvaluationComponent } from './evaluation.component';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'paper-trade', component: PaperTradeComponent },
   { path: 'paper-session', component: PaperSessionComponent },
   { path: 'backtest', component: BacktestComponent },
+  { path: 'evaluation', component: EvaluationComponent },
   { path: '**', redirectTo: 'dashboard' }
 ];
