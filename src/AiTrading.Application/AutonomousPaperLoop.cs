@@ -39,7 +39,7 @@ public sealed class AutonomousPaperLoopService(
         }
 
         var ranked = candidates
-            .OrderByDescending(x => x.Recommendation.Action == RecommendationAction.Buy)
+            .OrderByDescending(x => x.Recommendation.Action is RecommendationAction.Buy or RecommendationAction.Sell)
             .ThenByDescending(x => x.Recommendation.Confidence)
             .ThenByDescending(x => x.Recommendation.ExpectedReturn ?? decimal.MinValue)
             .ThenBy(x => x.Symbol.Value, StringComparer.Ordinal)
@@ -48,8 +48,15 @@ public sealed class AutonomousPaperLoopService(
 
         var selected = ranked.FirstOrDefault(x => x.Recommendation.Action == RecommendationAction.Buy);
         if (selected is null)
-            return new(sessionId, cycleAt, "PAPER_ONLY", ranked, null,
-                candidates.Any(x => x.Recommendation.Action == RecommendationAction.NoDecision) ? "NO_ACTIONABLE_OPPORTUNITY" : "NO_BUY_CANDIDATE");
+        {
+            var hasSell = candidates.Any(x => x.Recommendation.Action == RecommendationAction.Sell);
+            var reason = hasSell
+                ? "BEARISH_CANDIDATE_REQUIRES_SHORT_RISK_GATE"
+                : candidates.Any(x => x.Recommendation.Action == RecommendationAction.NoDecision)
+                    ? "NO_ACTIONABLE_OPPORTUNITY"
+                    : "NO_BUY_CANDIDATE";
+            return new(sessionId, cycleAt, "PAPER_ONLY", ranked, null, reason);
+        }
 
         var eventId = BuildEventId(sessionId, selected.Symbol, cycleAt, session.Configuration.Interval);
         var response = await execution.ProcessAsync(new PaperTradingEventRequest(sessionId, selected.Symbol, _options.Quantity, eventId), cancellationToken);
