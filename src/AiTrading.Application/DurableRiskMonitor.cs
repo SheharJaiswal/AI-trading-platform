@@ -15,6 +15,16 @@ public sealed class DurableRiskMonitor(
     private readonly PortfolioRiskMonitor _portfolioRiskMonitor = portfolioRiskMonitor ?? new PortfolioRiskMonitor(new PortfolioRiskMonitoringOptions());
     private readonly IMonitoringFailureSink _failureSink = failureSink ?? new NoopMonitoringFailureSink();
 
+    public DurableRiskMonitor(
+        IMarketDataProvider marketData,
+        ITradingUnitOfWorkFactory unitOfWorkFactory,
+        Guid portfolioId,
+        IAlertDelivery alertDelivery,
+        IMonitoringFailureSink failureSink)
+        : this(marketData, unitOfWorkFactory, portfolioId, alertDelivery, null, failureSink)
+    {
+    }
+
     public async Task<MonitoringCheckSummary> CheckOnceAsync(CancellationToken cancellationToken)
     {
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
