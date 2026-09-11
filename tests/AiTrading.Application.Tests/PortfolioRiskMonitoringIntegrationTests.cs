@@ -21,7 +21,7 @@ public sealed class PortfolioRiskMonitoringIntegrationTests
         var portfolio = new Portfolio(100m, [new Position(Guid.NewGuid(), new Symbol("ABC"), 2, 100m, null)], 0m, 0m);
         var monitor = new PortfolioRiskMonitor(new PortfolioRiskMonitoringOptions(
             MaxPositionWeight: 0.5m,
-            MaxGrossExposureRatio: 1m));
+            MaxGrossExposureRatio: 0.5m));
 
         var events = monitor.Evaluate(portfolio, new Dictionary<Symbol, decimal> { [new Symbol("ABC")] = 100m }, 0m);
 
