@@ -6,10 +6,16 @@ namespace AiTrading.Application.Tests;
 public sealed class PaperShortCyclePlannerTests
 {
     private static Recommendation SellRecommendation => new(
+        new Symbol("TEST"),
         RecommendationAction.Sell,
-        0.9m,
+        100m,
         -0.04m,
-        ["PRICE_BELOW_SMA20", "BEARISH_CANDLE"]);
+        0.9m,
+        1,
+        ["PRICE_BELOW_SMA20", "BEARISH_CANDLE"],
+        [],
+        DateTimeOffset.UtcNow,
+        "deterministic-v16");
 
     [Fact]
     public void Plan_NonSellRecommendationDoesNotCreateShort()
