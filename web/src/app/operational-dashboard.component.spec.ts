@@ -9,7 +9,7 @@ describe('OperationalDashboardComponent', () => {
     health: () => of({ status: 'ok', mode: 'paper', marketProvider: 'demo', persistence: true }),
     portfolio: () => of({ cash: 100000, positions: [], unrealizedPnl: 0, realizedPnl: 120 }),
     alerts: () => of([]),
-    evaluationMetrics: () => of({ total: 10, evaluated: 8, wins: 5, losses: 3, directionalAccuracy: 62.5, cumulativeReturn: 0.02, maxDrawdown: 0.01, unitPnl: 200 })
+    evaluationMetrics: () => of({ total: 10, evaluated: 8, wins: 5, losses: 3, directionalAccuracy: 0.625, cumulativeReturn: 0.02, maxDrawdown: 0.01, unitPnl: 200 })
   };
 
   beforeEach(async () => {
