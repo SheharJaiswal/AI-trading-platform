@@ -42,7 +42,7 @@ public static class DurableShortRecoveryReconciler
             return Fail("REALIZED_PNL_MISMATCH");
         if (position.Version != expectedVersion)
             return Fail("VERSION_MISMATCH");
-        if (ordered.Any((cover, index) => cover.ResultingPositionVersion != index + 1))
+        if (ordered.Select((cover, index) => cover.ResultingPositionVersion == index + 1).Any(valid => !valid))
             return Fail("COVER_VERSION_MISMATCH");
         if (!string.Equals(position.State, expectedState, StringComparison.Ordinal))
             return Fail("STATE_MISMATCH");
