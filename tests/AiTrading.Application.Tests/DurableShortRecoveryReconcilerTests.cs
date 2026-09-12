@@ -70,4 +70,21 @@ public sealed class DurableShortRecoveryReconcilerTests
         Assert.False(result.IsConsistent);
         Assert.Equal("VERSION_MISMATCH", result.Reason);
     }
+
+    [Fact]
+    public void Tampered_cover_pnl_is_detected()
+    {
+        var positionId = Guid.NewGuid();
+        var created = DateTimeOffset.UtcNow;
+        var covers = new[]
+        {
+            new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 92m, 5, 41m, 1, created.AddMinutes(1))
+        };
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, 92m, 41m, "SHORT_CLOSED", created, created.AddMinutes(1), 1);
+
+        var result = DurableShortRecoveryReconciler.Reconcile(position, covers);
+
+        Assert.False(result.IsConsistent);
+        Assert.Equal("INVALID_COVER", result.Reason);
+    }
 }
