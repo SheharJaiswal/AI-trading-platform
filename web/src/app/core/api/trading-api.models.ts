@@ -16,4 +16,8 @@ export interface BacktestEquityPoint{timestamp:string;cash:number;positionValue:
 export interface BacktestResult{startingCash:number;endingCash:number;returnPercent:number;maxDrawdownPercent:number;trades:BacktestTrade[];equityCurve:BacktestEquityPoint[];riskEvents:BacktestRiskEvent[];simulationOnly?:boolean;winCount?:number;lossCount?:number}
 export interface BacktestResponse{runId:string;status:string;result:BacktestResult;simulationLabel:string}
 export interface EvaluationMetrics{total:number;evaluated:number;wins:number;losses:number;directionalAccuracy:number;cumulativeReturn:number;maxDrawdown:number;unitPnl:number}
+export interface RecoveryPosition{id:string;portfolioId:string;symbol:{value:string;instrumentToken?:string|null}|string;originalQuantity:number;remainingQuantity:number;averageEntryPrice:number;lastCoverPrice?:number|null;realizedPnl:number;state:string;version:number;createdAt:string;updatedAt:string}
+export interface RecoveryCover{id:string;positionId:string;idempotencyKey:string;coverPrice:number;coverQuantity:number;realizedPnl:number;resultingPositionVersion:number;createdAt:string}
+export interface RecoveryReconciliation{isConsistent:boolean;reason:string}
+export interface RecoveryDiagnostic{position:RecoveryPosition;covers:RecoveryCover[];reconciliation:RecoveryReconciliation}
 export interface ApiError{errorCode?:string;message?:string;risk?:RiskResult;[key:string]:unknown}
