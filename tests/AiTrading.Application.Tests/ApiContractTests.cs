@@ -15,11 +15,9 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     public async Task Health_Returns_Stable_Paper_Mode_Contract()
     {
         using var client = factory.CreateClient();
-
         var response = await client.GetAsync("/health");
         response.EnsureSuccessStatusCode();
         Assert.Equal("application/json; charset=utf-8", response.Content.Headers.ContentType?.ToString());
-
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("ok", document.RootElement.GetProperty("status").GetString());
         Assert.Equal("paper", document.RootElement.GetProperty("mode").GetString());
@@ -30,10 +28,8 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     public async Task Portfolio_Returns_Stable_Json_Contract()
     {
         using var client = factory.CreateClient();
-
         var response = await client.GetAsync("/api/portfolio");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.True(document.RootElement.TryGetProperty("cash", out _));
         Assert.True(document.RootElement.TryGetProperty("positions", out _));
@@ -45,9 +41,7 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     public async Task PaperTrade_Requires_Idempotency_Key()
     {
         using var client = factory.CreateClient();
-
         var response = await client.PostAsync("/api/paper-trades/TCS?quantity=1", content: null);
-
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("INVALID_IDEMPOTENCY_KEY", document.RootElement.GetProperty("errorCode").GetString());
@@ -68,14 +62,12 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
                 services.AddSingleton<IPaperTradeService>(fake);
             });
         }).CreateClient();
-
         using var first = new HttpRequestMessage(HttpMethod.Post, "/api/paper-trades/TCS?quantity=1");
         first.Headers.Add("Idempotency-Key", "api-request-123");
         using var firstResponse = await client.SendAsync(first);
         using var second = new HttpRequestMessage(HttpMethod.Post, "/api/paper-trades/TCS?quantity=1");
         second.Headers.Add("Idempotency-Key", "api-request-123");
         using var secondResponse = await client.SendAsync(second);
-
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
         Assert.Equal(2, fake.ExecutionCount);
@@ -91,9 +83,7 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         var routeId = Guid.NewGuid();
         var requestId = Guid.NewGuid();
         using var content = new StringContent($"{{\"sessionId\":\"{requestId}\",\"symbol\":{{\"value\":\"TCS\"}},\"quantity\":1,\"eventId\":\"evt-1\"}}", System.Text.Encoding.UTF8, "application/json");
-
         var response = await client.PostAsync($"/api/paper-sessions/{routeId}/events", content);
-
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("SESSION_ID_MISMATCH", document.RootElement.GetProperty("errorCode").GetString());
@@ -105,9 +95,7 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         using var client = factory.CreateClient();
         var sessionId = Guid.NewGuid();
         using var content = new StringContent($"{{\"sessionId\":\"{sessionId}\",\"symbol\":{{\"value\":\"TCS\"}},\"quantity\":1,\"eventId\":\"evt-1\"}}", System.Text.Encoding.UTF8, "application/json");
-
         var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/events", content);
-
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
@@ -118,13 +106,11 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     {
         using var client = factory.CreateClient();
         var positionId = Guid.NewGuid();
-
         var response = await client.GetAsync($"/api/paper-shorts/{positionId}/recovery");
-
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
-        Assert.Contains("read", document.RootElement.GetProperty("message").GetString()!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Durable short recovery diagnostics require MySQL persistence.", document.RootElement.GetProperty("message").GetString());
     }
 
     private sealed class FakePaperTradeService : IPaperTradeService
@@ -133,7 +119,6 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         public string? LastIdempotencyKey { get; private set; }
         public Guid? FirstOrderId { get; private set; }
         public Guid? LastOrderId { get; private set; }
-
         public Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
         {
             FirstOrderId ??= orderId;
