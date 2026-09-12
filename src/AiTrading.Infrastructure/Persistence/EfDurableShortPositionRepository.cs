@@ -11,6 +11,18 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
 {
     public async Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken ct) => await ReadPositionAsync(positionId, forUpdate: false, ct);
 
+    public async Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken ct)
+    {
+        await using var command = CreateCommand("SELECT Id, PositionId, IdempotencyKey, CoverPrice, CoverQuantity, RealizedPnl, ResultingPositionVersion, CreatedAt FROM paper_short_covers WHERE PositionId=@position ORDER BY CreatedAt, Id");
+        Add(command, "@position", positionId.ToString());
+        await EnsureOpenAsync(command.Connection!, ct);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var covers = new List<DurableShortCoverState>();
+        while (await reader.ReadAsync(ct))
+            covers.Add(new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7)));
+        return covers;
+    }
+
     public async Task AddAsync(DurableShortPositionState position, CancellationToken ct)
     {
         await using var command = CreateCommand("INSERT INTO paper_short_positions (Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version) VALUES (@id,@portfolio,@symbol,@token,@original,@remaining,@entry,@lastCover,@pnl,@state,@created,@updated,@version)");

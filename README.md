@@ -71,12 +71,17 @@ A running paper session can execute one deterministic autonomous cycle through `
 
 Configure `AutonomousLoop:Quantity` and `AutonomousLoop:MaxCandidates`. The Compose defaults are 1 for both. The cycle is deliberately an explicit operation in this delivery slice; always-on scheduling and market-hours rules remain separate business decisions.
 
+### Durable short recovery diagnostics
+
+When MySQL persistence is enabled, `GET /api/paper-shorts/{positionId}/recovery` returns the persisted short position, its cover-operation ledger, and the deterministic V27 reconciliation result. This is a read-only diagnostic: it does not repair state, retry covers, liquidate, or call a broker.
+
 ## Key endpoints
 
 - `GET /health`
 - `GET /api/market/{symbol}/quote?instrumentToken=...`
 - `GET /api/recommendations/{symbol}?instrumentToken=...`
 - `POST /api/paper-trades/{symbol}?instrumentToken=...&quantity=...`
+- `GET /api/paper-shorts/{positionId}/recovery`
 - `POST /api/paper-sessions/{id}/run-cycle`
 - `POST /api/ai/research`
 - `GET /api/portfolio`
