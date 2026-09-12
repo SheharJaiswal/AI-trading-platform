@@ -38,6 +38,22 @@ public sealed class NewsMonitoringIntegrationTests
     }
 
     [Fact]
+    public async Task DoesNotAlertForFutureDatedNews()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var item = new NewsItem("n1", "Future update", now.AddMinutes(5), new[] { new Symbol("ABC") }, NewsSentiment.Negative, NewsMateriality.High, "test");
+        var service = new NewsMonitoringService(new StubNewsProvider(new[] { item }), new NewsClassifier(new(TimeSpan.FromMinutes(30))));
+
+        var result = await service.CheckAsync(Array.Empty<Symbol>(), now, now, CancellationToken.None);
+
+        var observation = Assert.Single(result.Items);
+        Assert.Equal(NewsRecency.Unknown, observation.Recency);
+        Assert.False(observation.IsActionableObservation);
+        Assert.Empty(result.Alerts);
+        Assert.Null(result.ProviderFailure);
+    }
+
+    [Fact]
     public async Task IsolatesProviderFailure()
     {
         var service = new NewsMonitoringService(new FailingNewsProvider(), new NewsClassifier(new(TimeSpan.FromMinutes(30))));

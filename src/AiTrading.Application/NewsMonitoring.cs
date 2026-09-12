@@ -57,9 +57,11 @@ public sealed class NewsClassifier(NewsMonitoringOptions options)
 
         var recency = item.PublishedAt is null
             ? NewsRecency.Unknown
-            : now - item.PublishedAt.Value <= options.StaleAfter
-                ? NewsRecency.Current
-                : NewsRecency.Stale;
+            : item.PublishedAt.Value > now
+                ? NewsRecency.Unknown
+                : now - item.PublishedAt.Value <= options.StaleAfter
+                    ? NewsRecency.Current
+                    : NewsRecency.Stale;
 
         var actionable = recency == NewsRecency.Current &&
                          item.Materiality is NewsMateriality.Medium or NewsMateriality.High &&
