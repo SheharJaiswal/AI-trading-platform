@@ -2,6 +2,8 @@ using System.Data;
 using AiTrading.Application;
 using AiTrading.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data.Common;
 
 namespace AiTrading.Infrastructure.Persistence;
 
@@ -71,9 +73,9 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
     }
 
     private DbCommand CreateCommand(string sql) { var command = db.Database.GetDbConnection().CreateCommand(); command.CommandText = sql; command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction(); return command; }
-    private static DurableShortPositionState ReadPosition(System.Data.Common.DbDataReader r) => new(ParseGuid(r.GetValue(0)), ParseGuid(r.GetValue(1)), new Symbol(r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3)), r.GetInt32(4), r.GetInt32(5), r.GetDecimal(6), r.IsDBNull(7) ? null : r.GetDecimal(7), r.GetDecimal(8), r.GetString(9), ReadDate(r, 10), ReadDate(r, 11), r.GetInt64(12));
+    private static DurableShortPositionState ReadPosition(DbDataReader r) => new(ParseGuid(r.GetValue(0)), ParseGuid(r.GetValue(1)), new Symbol(r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3)), r.GetInt32(4), r.GetInt32(5), r.GetDecimal(6), r.IsDBNull(7) ? null : r.GetDecimal(7), r.GetDecimal(8), r.GetString(9), ReadDate(r, 10), ReadDate(r, 11), r.GetInt64(12));
     private static Guid ParseGuid(object value) => value is Guid g ? g : Guid.Parse(Convert.ToString(value)!);
-    private static DateTimeOffset ReadDate(System.Data.Common.DbDataReader r, int i) => new(DateTime.SpecifyKind(r.GetDateTime(i), DateTimeKind.Utc));
-    private static void Add(System.Data.Common.DbCommand c, string name, object value) { var p=c.CreateParameter(); p.ParameterName=name; p.Value=value; c.Parameters.Add(p); }
-    private static async Task EnsureOpenAsync(System.Data.Common.DbConnection c, CancellationToken ct) { if (c.State != ConnectionState.Open) await c.OpenAsync(ct); }
+    private static DateTimeOffset ReadDate(DbDataReader r, int i) => new(DateTime.SpecifyKind(r.GetDateTime(i), DateTimeKind.Utc));
+    private static void Add(DbCommand c, string name, object value) { var p=c.CreateParameter(); p.ParameterName=name; p.Value=value; c.Parameters.Add(p); }
+    private static async Task EnsureOpenAsync(DbConnection c, CancellationToken ct) { if (c.State != ConnectionState.Open) await c.OpenAsync(ct); }
 }
