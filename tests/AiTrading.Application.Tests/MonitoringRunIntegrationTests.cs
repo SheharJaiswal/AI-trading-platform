@@ -41,7 +41,7 @@ public sealed class MonitoringRunIntegrationTests
         var result = await runService.RunOnceAsync(CancellationToken.None);
 
         await using var verify = new TradingDbContext(options);
-        var record = await verify.MonitoringRuns.AsNoTracking().SingleAsync(x => x.Id == result.Id);
+        var record = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == result.Id);
         Assert.Equal(MonitoringRunStatus.Completed.ToString(), record.Status);
         Assert.Equal(0, record.PositionCount);
         Assert.Equal(0, record.FailureCount);
