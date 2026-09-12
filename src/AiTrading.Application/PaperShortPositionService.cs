@@ -5,8 +5,8 @@ namespace AiTrading.Application;
 /// <summary>Pure state transition helper for durable paper short positions.</summary>
 public static class PaperShortPositionService
 {
-    public static PaperShortPosition Cover(
-        PaperShortPosition position,
+    public static DurablePaperShortPosition Cover(
+        DurablePaperShortPosition position,
         decimal coverPrice,
         int coverQuantity,
         DateTimeOffset now)
