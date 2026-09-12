@@ -33,7 +33,7 @@ public sealed class PaperShortExecutionTests
         var risk = PaperShortRiskGate.Validate(10, 100m, 95m, 94m);
 
         Assert.False(risk.Approved);
-        Assert.Contains("stop-loss", risk.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SHORT_STOP_MUST_BE_ABOVE_ENTRY", risk.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -42,6 +42,6 @@ public sealed class PaperShortExecutionTests
         var risk = PaperShortRiskGate.Validate(10, 100m, 105m, 101m);
 
         Assert.False(risk.Approved);
-        Assert.Contains("target", risk.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SHORT_TARGET_MUST_BE_BELOW_ENTRY", risk.Reason, StringComparison.OrdinalIgnoreCase);
     }
 }
