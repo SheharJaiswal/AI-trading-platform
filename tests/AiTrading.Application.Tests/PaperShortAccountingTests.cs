@@ -1,3 +1,5 @@
+using AiTrading.Application;
+
 namespace AiTrading.Application.Tests;
 
 public sealed class PaperShortAccountingTests
