@@ -1,6 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OperationalDashboardComponent } from './operational-dashboard.component';
 
 describe('OperationalDashboardComponent', () => {
@@ -16,7 +16,7 @@ describe('OperationalDashboardComponent', () => {
 
   afterEach(() => http.verify());
 
-  function flushDashboard(fixture: ReturnType<typeof TestBed.createComponent>, aiProvider: string) {
+  function flushDashboard(fixture: ComponentFixture<OperationalDashboardComponent>, aiProvider: string) {
     fixture.detectChanges();
     http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider, persistence: true });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
