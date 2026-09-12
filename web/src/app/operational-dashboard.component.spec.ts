@@ -16,9 +16,9 @@ describe('OperationalDashboardComponent', () => {
 
   afterEach(() => http.verify());
 
-  function flushDashboard(fixture: ComponentFixture<OperationalDashboardComponent>, aiProvider: string) {
+  function flushDashboard(fixture: ComponentFixture<OperationalDashboardComponent>, aiProvider: string, marketProvider = 'demo') {
     fixture.detectChanges();
-    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider, persistence: true });
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider, aiProvider, persistence: true });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
@@ -56,5 +56,18 @@ describe('OperationalDashboardComponent', () => {
     flushDashboard(fixture, '');
     expect(fixture.nativeElement.textContent).toContain('DISABLED');
     expect(fixture.nativeElement.textContent).toContain('Advisory research only');
+  });
+
+  it('surfaces the configured market data provider', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    flushDashboard(fixture, 'disabled', 'angelone');
+    expect(fixture.nativeElement.textContent).toContain('ANGELONE');
+    expect(fixture.nativeElement.textContent).toContain('Read-only provider visibility');
+  });
+
+  it('uses an explicit unknown label when market provider is absent', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    flushDashboard(fixture, 'disabled', '');
+    expect(fixture.nativeElement.textContent).toContain('UNKNOWN');
   });
 });
