@@ -88,6 +88,7 @@ public sealed class DurablePaperTradingServiceTests
         public FakeOrderRepository OrdersStore { get; } = new();
         public IPortfolioRepository Portfolios => PortfolioStore;
         public IOrderRepository Orders => OrdersStore;
+        public IDurableShortPositionRepository DurableShortPositions { get; } = new NoOpDurableShortPositionRepository();
         public IPaperTradingEventAuditRepository PaperTradingEventAudits { get; } = new NoOpPaperTradingEventAuditRepository();
         public IAlertRepository Alerts { get; } = new NoOpAlertRepository();
         public IMarketDataSnapshotRepository MarketDataSnapshots { get; } = new NoOpMarketDataRepository();
@@ -96,6 +97,14 @@ public sealed class DurablePaperTradingServiceTests
         public IBacktestAuditRepository BacktestAudit { get; } = new NoOpBacktestAuditRepository();
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class NoOpDurableShortPositionRepository : IDurableShortPositionRepository
+    {
+        public Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult<DurableShortPositionState?>(null);
+        public Task AddAsync(DurableShortPositionState position, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<DurableShortPositionState> ApplyCoverAsync(Guid positionId, string idempotencyKey, decimal coverPrice, int coverQuantity, long expectedVersion, DateTimeOffset now, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Durable short persistence is not used by these paper-trading tests.");
     }
 
     private sealed class FakePortfolioRepository(PortfolioState portfolio) : IPortfolioRepository
