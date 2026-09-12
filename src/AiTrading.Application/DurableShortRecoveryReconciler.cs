@@ -24,7 +24,7 @@ public static class DurableShortRecoveryReconciler
             return Fail("MISSING_IDEMPOTENCY_KEY");
         if (ordered.Select(x => x.IdempotencyKey).Distinct(StringComparer.Ordinal).Count() != ordered.Length)
             return Fail("DUPLICATE_IDEMPOTENCY_KEY");
-        if (ordered.Any(x => x.CoverPrice <= 0 || x.CoverQuantity <= 0))
+        if (ordered.Any(x => x.CoverPrice <= 0 || x.CoverQuantity <= 0 || x.RealizedPnl != PaperShortAccounting.RealizedPnl(position.AverageEntryPrice, x.CoverPrice, x.CoverQuantity)))
             return Fail("INVALID_COVER");
 
         var coveredQuantity = ordered.Sum(x => x.CoverQuantity);
@@ -42,6 +42,10 @@ public static class DurableShortRecoveryReconciler
             return Fail("REALIZED_PNL_MISMATCH");
         if (position.Version != expectedVersion)
             return Fail("VERSION_MISMATCH");
+        if (ordered.Any(x => x.ResultingPositionVersion <= 0 || x.ResultingPositionVersion > position.Version))
+            return Fail("COVER_VERSION_MISMATCH");
+        if (ordered.Select(x => x.ResultingPositionVersion).Distinct().Count() != ordered.Length)
+            return Fail("DUPLICATE_COVER_VERSION");
         if (!string.Equals(position.State, expectedState, StringComparison.Ordinal))
             return Fail("STATE_MISMATCH");
         if (ordered.Length > 0 && position.LastCoverPrice != ordered[^1].CoverPrice)
