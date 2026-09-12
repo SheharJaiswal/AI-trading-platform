@@ -1,9 +1,10 @@
+using AiTrading.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-
 #nullable disable
-
 namespace AiTrading.Infrastructure.Persistence.Migrations;
-
+[DbContext(typeof(TradingDbContext))]
+[Migration("202609100001_MonitoringRuns")]
 public partial class MonitoringRuns : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
