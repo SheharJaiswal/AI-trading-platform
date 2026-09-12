@@ -42,10 +42,8 @@ public static class DurableShortRecoveryReconciler
             return Fail("REALIZED_PNL_MISMATCH");
         if (position.Version != expectedVersion)
             return Fail("VERSION_MISMATCH");
-        if (ordered.Any(x => x.ResultingPositionVersion <= 0 || x.ResultingPositionVersion > position.Version))
+        if (ordered.Any((cover, index) => cover.ResultingPositionVersion != index + 1))
             return Fail("COVER_VERSION_MISMATCH");
-        if (ordered.Select(x => x.ResultingPositionVersion).Distinct().Count() != ordered.Length)
-            return Fail("DUPLICATE_COVER_VERSION");
         if (!string.Equals(position.State, expectedState, StringComparison.Ordinal))
             return Fail("STATE_MISMATCH");
         if (ordered.Length > 0 && position.LastCoverPrice != ordered[^1].CoverPrice)
