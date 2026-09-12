@@ -34,7 +34,7 @@ public static class DurableShortRecoveryReconciler
         var expectedRemaining = position.OriginalQuantity - coveredQuantity;
         var expectedPnl = ordered.Sum(x => x.RealizedPnl);
         var expectedVersion = ordered.Length;
-        var expectedState = expectedRemaining == 0 ? "SHORT_CLOSED" : ordered.Length == 0 ? "OPEN" : "SHORT_PARTIALLY_COVERED";
+        var expectedState = expectedRemaining == 0 ? "SHORT_CLOSED" : ordered.Length == 0 ? "SHORT_OPEN" : "SHORT_PARTIALLY_COVERED";
 
         if (position.RemainingQuantity != expectedRemaining)
             return Fail("REMAINING_QUANTITY_MISMATCH");
