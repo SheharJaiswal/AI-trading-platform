@@ -51,8 +51,10 @@ public sealed class DurablePaperShortCoverServiceTests
     private sealed class FakeRepository : IDurableShortPositionRepository
     {
         private DurableShortPositionState? position;
+        private readonly List<DurableShortCoverState> covers = [];
         public string? LastKey { get; private set; }
         public Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult(position?.Id == positionId ? position : null);
+        public Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<DurableShortCoverState>>(covers.Where(x => x.PositionId == positionId).OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToArray());
         public Task AddAsync(DurableShortPositionState value, CancellationToken cancellationToken) { position = value; return Task.CompletedTask; }
         public Task<DurableShortPositionState> ApplyCoverAsync(Guid positionId, string idempotencyKey, decimal coverPrice, int coverQuantity, long expectedVersion, DateTimeOffset now, CancellationToken cancellationToken)
         {
@@ -62,6 +64,7 @@ public sealed class DurablePaperShortCoverServiceTests
             var pnl = PaperShortAccounting.RealizedPnl(position.AverageEntryPrice, coverPrice, coverQuantity);
             var remaining = position.RemainingQuantity - coverQuantity;
             position = position with { RemainingQuantity = remaining, LastCoverPrice = coverPrice, RealizedPnl = position.RealizedPnl + pnl, State = remaining == 0 ? "SHORT_CLOSED" : "SHORT_PARTIALLY_COVERED", UpdatedAt = now, Version = position.Version + 1 };
+            covers.Add(new DurableShortCoverState(Guid.NewGuid(), positionId, idempotencyKey, coverPrice, coverQuantity, pnl, position.Version, now));
             return Task.FromResult(position);
         }
     }
