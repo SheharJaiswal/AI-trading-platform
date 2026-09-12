@@ -1,39 +1,70 @@
+using AiTrading.Domain;
+
 namespace AiTrading.Application;
 
-public enum NewsRecency { Unknown, Current, Stale }
-public enum NewsSentiment { Unknown, Positive, Neutral, Negative }
-public enum NewsMateriality { Unknown, Low, Medium, High }
-
-public sealed record MarketNewsItem(string Id, string Headline, DateTimeOffset? PublishedAt, NewsSentiment Sentiment, NewsMateriality Materiality, IReadOnlyList<string> AffectedSymbols);
-public sealed record NewsObservation(MarketNewsItem Item, NewsRecency Recency, bool Actionable);
-public sealed record NewsMonitoringOptions(TimeSpan CurrentWindow)
+public enum NewsSentiment
 {
-    public static NewsMonitoringOptions Default { get; } = new(TimeSpan.FromHours(24));
+    Unknown,
+    Positive,
+    Neutral,
+    Negative
 }
 
-public static class NewsObservationClassifier
+public enum NewsMateriality
 {
-    public static NewsObservation Classify(MarketNewsItem item, DateTimeOffset observedAt, NewsMonitoringOptions? options = null)
+    Unknown,
+    Low,
+    Medium,
+    High
+}
+
+public sealed record NewsItem(
+    string Id,
+    string Headline,
+    DateTimeOffset? PublishedAt,
+    IReadOnlyList<Symbol> AffectedSymbols,
+    NewsSentiment Sentiment,
+    NewsMateriality Materiality,
+    string Source);
+
+public sealed record NewsMonitoringOptions(TimeSpan StaleAfter)
+{
+    public void Validate()
     {
-        var window = (options ?? NewsMonitoringOptions.Default).CurrentWindow;
-        var recency = item.PublishedAt switch
-        {
-            null => NewsRecency.Unknown,
-            var publishedAt when publishedAt > observedAt => NewsRecency.Unknown,
-            var publishedAt when observedAt - publishedAt <= window => NewsRecency.Current,
-            _ => NewsRecency.Stale
-        };
-        var actionable = recency == NewsRecency.Current
-            && item.Materiality is NewsMateriality.Medium or NewsMateriality.High
-            && item.AffectedSymbols.Any()
-            && item.Sentiment != NewsSentiment.Unknown;
-        return new NewsObservation(item, recency, actionable);
+        if (StaleAfter <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(StaleAfter));
     }
 }
 
-public interface IMarketNewsProvider
+public enum NewsRecency
 {
-    Task<IReadOnlyList<MarketNewsItem>> GetLatestAsync(CancellationToken cancellationToken);
+    Unknown,
+    Current,
+    Stale
 }
 
-public sealed record NewsMonitoringResult(IReadOnlyList<NewsObservation> Observations, string? ErrorCode = null, string? ErrorMessage = null);
+public sealed record ClassifiedNews(
+    NewsItem Item,
+    NewsRecency Recency,
+    bool IsActionableObservation);
+
+public sealed class NewsClassifier(NewsMonitoringOptions options)
+{
+    public ClassifiedNews Classify(NewsItem item, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        options.Validate();
+
+        var recency = item.PublishedAt is null
+            ? NewsRecency.Unknown
+            : now - item.PublishedAt.Value <= options.StaleAfter
+                ? NewsRecency.Current
+                : NewsRecency.Stale;
+
+        var actionable = recency == NewsRecency.Current &&
+                         item.Materiality is NewsMateriality.Medium or NewsMateriality.High &&
+                         item.AffectedSymbols.Count > 0;
+
+        return new ClassifiedNews(item, recency, actionable);
+    }
+}
