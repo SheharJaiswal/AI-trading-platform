@@ -1,36 +1,42 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
 import { OperationalDashboardComponent } from './operational-dashboard.component';
-import { TradingApiService } from './core/api/trading-api.service';
 
 describe('OperationalDashboardComponent', () => {
-  let fixture: ComponentFixture<OperationalDashboardComponent>;
-  const api = {
-    health: () => of({ status: 'ok', mode: 'paper', marketProvider: 'demo', persistence: true }),
-    portfolio: () => of({ cash: 100000, positions: [], unrealizedPnl: 0, realizedPnl: 120 }),
-    alerts: () => of([]),
-    evaluationMetrics: () => of({ total: 10, evaluated: 8, wins: 5, losses: 3, directionalAccuracy: 0.625, cumulativeReturn: 0.02, maxDrawdown: 0.01, unitPnl: 200 })
-  };
+  let http: HttpTestingController;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [OperationalDashboardComponent], providers: [{ provide: TradingApiService, useValue: api }] }).compileComponents();
-    fixture = TestBed.createComponent(OperationalDashboardComponent);
+    await TestBed.configureTestingModule({
+      imports: [OperationalDashboardComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('surfaces durable persistence state from the health contract', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
     fixture.detectChanges();
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: true });
+    http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
+    http.expectOne('/api/alerts').flush([]);
+    http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('DURABLE');
+    expect(fixture.nativeElement.textContent).toContain('MySQL-backed paper state');
   });
 
-  it('shows healthy paper operations and empty alert state', () => {
-    expect(fixture.nativeElement.textContent).toContain('API online');
-    expect(fixture.nativeElement.textContent).toContain('paper');
-    expect(fixture.nativeElement.textContent).toContain('No persisted risk alerts');
-    expect(fixture.nativeElement.textContent).toContain('62.5%');
-  });
-
-  it('shows unavailable state when health cannot be reached', () => {
-    const failingApi = { ...api, health: () => throwError(() => new Error('offline')) };
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ imports: [OperationalDashboardComponent], providers: [{ provide: TradingApiService, useValue: failingApi }] });
-    const failingFixture = TestBed.createComponent(OperationalDashboardComponent);
-    failingFixture.detectChanges();
-    expect(failingFixture.nativeElement.textContent).toContain('The trading API could not be reached');
+  it('shows in-memory persistence state when durable storage is disabled', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    fixture.detectChanges();
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: false });
+    http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
+    http.expectOne('/api/alerts').flush([]);
+    http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('IN-MEMORY');
+    expect(fixture.nativeElement.textContent).toContain('Default paper configuration');
   });
 });
