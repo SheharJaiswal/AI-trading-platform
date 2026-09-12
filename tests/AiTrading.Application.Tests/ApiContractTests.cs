@@ -113,6 +113,20 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
     }
 
+    [Fact]
+    public async Task RecoveryDiagnostic_Requires_Durable_Persistence()
+    {
+        using var client = factory.CreateClient();
+        var positionId = Guid.NewGuid();
+
+        var response = await client.GetAsync($"/api/paper-shorts/{positionId}/recovery");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
+        Assert.Contains("read", document.RootElement.GetProperty("message").GetString()!, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class FakePaperTradeService : IPaperTradeService
     {
         public int ExecutionCount { get; private set; }
