@@ -17,8 +17,11 @@ The check validates:
 - remaining quantity
 - accumulated realized P&L
 - position version
+- sequential cover versions
 - lifecycle state
 - last cover price
+
+For an opened position with no cover operations, the expected lifecycle state is `SHORT_OPEN` and the expected version is `0`. Each persisted cover must then advance the position version exactly once in chronological ledger order.
 
 ## Recovery behavior
 
