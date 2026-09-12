@@ -29,6 +29,7 @@ public sealed record DurableShortCoverState(
 public interface IDurableShortPositionRepository
 {
     Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken cancellationToken);
     Task AddAsync(DurableShortPositionState position, CancellationToken cancellationToken);
     Task<DurableShortPositionState> ApplyCoverAsync(
         Guid positionId,
