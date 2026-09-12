@@ -16,10 +16,21 @@ public sealed record DurableShortPositionState(
     DateTimeOffset UpdatedAt,
     long Version);
 
+public sealed record DurableShortCoverState(
+    Guid Id,
+    Guid PositionId,
+    string IdempotencyKey,
+    decimal CoverPrice,
+    int CoverQuantity,
+    decimal RealizedPnl,
+    long ResultingPositionVersion,
+    DateTimeOffset CreatedAt);
+
 public interface IDurableShortPositionRepository
 {
     Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken);
-    Task<DurableShortPositionState?> GetByIdempotencyKeyAsync(Guid positionId, string idempotencyKey, CancellationToken cancellationToken);
+    Task<DurableShortCoverState?> GetCoverByIdempotencyKeyAsync(Guid positionId, string idempotencyKey, CancellationToken cancellationToken);
     Task AddAsync(DurableShortPositionState position, CancellationToken cancellationToken);
     Task SaveAsync(DurableShortPositionState position, long expectedVersion, CancellationToken cancellationToken);
+    Task AddCoverAsync(DurableShortCoverState cover, CancellationToken cancellationToken);
 }
