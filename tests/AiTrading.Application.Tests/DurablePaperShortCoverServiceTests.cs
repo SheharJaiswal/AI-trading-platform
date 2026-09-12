@@ -53,6 +53,7 @@ public sealed class DurablePaperShortCoverServiceTests
         private DurableShortPositionState? position;
         public string? LastKey { get; private set; }
         public Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult(position?.Id == positionId ? position : null);
+        public Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<DurableShortCoverState>>([]);
         public Task AddAsync(DurableShortPositionState value, CancellationToken cancellationToken) { position = value; return Task.CompletedTask; }
         public Task<DurableShortPositionState> ApplyCoverAsync(Guid positionId, string idempotencyKey, decimal coverPrice, int coverQuantity, long expectedVersion, DateTimeOffset now, CancellationToken cancellationToken)
         {
