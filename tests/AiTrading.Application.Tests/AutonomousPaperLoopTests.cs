@@ -72,6 +72,29 @@ public sealed class AutonomousPaperLoopTests
         Assert.Empty(paperTrades.Calls);
     }
 
+    [Fact]
+    public async Task RunCycle_DoesNotExecute_AValidBearishCandidateUntilShortLifecycleExists()
+    {
+        var sessionRepository = new InMemoryPaperTradingSessionRepository();
+        var sessions = new PaperTradingSessionService(sessionRepository);
+        var symbol = new Symbol("DEMO");
+        var session = await sessions.CreateAsync(new([symbol], "1m", "baseline-v1", 1_000m), CancellationToken.None);
+        await sessions.TransitionAsync(session.Id, PaperTradingSessionStatus.Running, CancellationToken.None);
+
+        var provider = new BearishMarketDataProvider();
+        var recommendations = new RecommendationService(provider, new MarketDataFreshnessOptions(TimeSpan.FromMinutes(5)));
+        var paperTrades = new RecordingPaperTradeService();
+        var execution = new PaperTradingSessionExecutionService(sessions, paperTrades);
+        var loop = new AutonomousPaperLoopService(sessions, recommendations, execution);
+
+        var result = await loop.RunCycleAsync(session.Id, CancellationToken.None);
+
+        Assert.Contains(result.Candidates, x => x.Recommendation.Action == RecommendationAction.Sell);
+        Assert.Equal("BEARISH_CANDIDATE_REQUIRES_SHORT_RISK_GATE", result.NoDecisionReason);
+        Assert.Null(result.Execution);
+        Assert.Empty(paperTrades.Calls);
+    }
+
     private sealed class FakeMarketDataProvider : IMarketDataProvider
     {
         public Task<MarketQuote> GetQuoteAsync(Symbol symbol, CancellationToken cancellationToken) =>
