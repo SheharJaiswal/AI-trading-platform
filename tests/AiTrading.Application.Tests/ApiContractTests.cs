@@ -22,6 +22,8 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         Assert.Equal("ok", document.RootElement.GetProperty("status").GetString());
         Assert.Equal("paper", document.RootElement.GetProperty("mode").GetString());
         Assert.True(document.RootElement.TryGetProperty("marketProvider", out _));
+        Assert.True(document.RootElement.TryGetProperty("persistence", out var persistence));
+        Assert.False(persistence.GetBoolean());
     }
 
     [Fact]
