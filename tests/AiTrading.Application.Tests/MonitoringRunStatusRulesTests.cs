@@ -5,26 +5,21 @@ namespace AiTrading.Application.Tests;
 public sealed class MonitoringRunStatusRulesTests
 {
     [Fact]
-    public void NoFailures_IsCompleted()
-    {
-        Assert.Equal(MonitoringRunStatus.Completed, MonitoringRunStatusRules.Resolve(3, 3, 0));
-    }
+    public void NoFailures_IsCompleted() => Assert.Equal(MonitoringRunStatus.Completed, MonitoringRunStatusRules.Resolve(3, 3, 0));
 
     [Fact]
-    public void MixedResults_ArePartiallyFailed()
-    {
-        Assert.Equal(MonitoringRunStatus.PartiallyFailed, MonitoringRunStatusRules.Resolve(3, 2, 1));
-    }
+    public void MixedResults_ArePartiallyFailed() => Assert.Equal(MonitoringRunStatus.PartiallyFailed, MonitoringRunStatusRules.Resolve(3, 2, 1));
 
     [Fact]
-    public void AllFailures_AreFailed()
-    {
-        Assert.Equal(MonitoringRunStatus.Failed, MonitoringRunStatusRules.Resolve(3, 0, 3));
-    }
+    public void AllFailures_AreFailed() => Assert.Equal(MonitoringRunStatus.Failed, MonitoringRunStatusRules.Resolve(3, 0, 3));
 
     [Fact]
-    public void InconsistentCounts_AreRejected()
-    {
-        Assert.Throws<ArgumentException>(() => MonitoringRunStatusRules.Resolve(3, 1, 1));
-    }
+    public void InconsistentCounts_AreRejected() => Assert.Throws<ArgumentException>(() => MonitoringRunStatusRules.Resolve(3, 1, 1));
+
+    [Theory]
+    [InlineData(-1, 0, 0)]
+    [InlineData(1, -1, 2)]
+    [InlineData(1, 2, -1)]
+    public void NegativeCounts_AreRejected(int positionCount, int successCount, int failureCount) =>
+        Assert.Throws<ArgumentException>(() => MonitoringRunStatusRules.Resolve(positionCount, successCount, failureCount));
 }

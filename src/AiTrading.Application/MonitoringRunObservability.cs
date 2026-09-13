@@ -48,11 +48,7 @@ public sealed class MonitoringRunService(
         {
             var summary = await monitor.CheckOnceAsync(cancellationToken);
             var completedAt = timeProvider.GetUtcNow();
-            var status = summary.FailureCount == 0
-                ? MonitoringRunStatus.Completed
-                : summary.SuccessCount == 0
-                    ? MonitoringRunStatus.Failed
-                    : MonitoringRunStatus.PartiallyFailed;
+            var status = MonitoringRunStatusRules.Resolve(summary.PositionCount, summary.SuccessCount, summary.FailureCount);
             await repository.CompleteAsync(id, completedAt, status, summary.PositionCount, summary.FailureCount, cancellationToken);
             return new MonitoringRunResult(id, status, summary.PositionCount, summary.FailureCount, startedAt, completedAt);
         }
