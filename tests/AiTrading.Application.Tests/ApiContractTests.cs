@@ -122,6 +122,7 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         using var client = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
         }).CreateClient();
         var response = await client.GetAsync($"/api/monitoring/runs?limit={limit}");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
