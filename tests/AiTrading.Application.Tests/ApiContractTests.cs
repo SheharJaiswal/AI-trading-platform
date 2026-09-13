@@ -136,6 +136,8 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         using var client = factory.CreateClient();
         var response = await client.GetAsync("/api/monitoring/runs?limit=not-a-number");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_LIMIT", document.RootElement.GetProperty("errorCode").GetString());
     }
 
     [Fact]
