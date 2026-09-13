@@ -2,6 +2,17 @@ using AiTrading.Domain;
 
 namespace AiTrading.Application;
 
+public interface IAutonomousPaperShortExecutionCoordinator
+{
+    Task<PaperShortExecutionResult> ExecuteAsync(
+        Guid sessionId,
+        Symbol symbol,
+        Recommendation recommendation,
+        MarketQuote quote,
+        int quantity,
+        CancellationToken cancellationToken);
+}
+
 public sealed record AutonomousPaperShortExecutionOptions(
     decimal StopLossPercent,
     decimal TargetPercent,
@@ -24,7 +35,7 @@ public sealed record AutonomousPaperShortExecutionOptions(
 /// </summary>
 public sealed class AutonomousPaperShortExecutionCoordinator(
     DurablePaperShortExecutionService execution,
-    AutonomousPaperShortExecutionOptions options)
+    AutonomousPaperShortExecutionOptions options) : IAutonomousPaperShortExecutionCoordinator
 {
     public async Task<PaperShortExecutionResult> ExecuteAsync(
         Guid sessionId,
