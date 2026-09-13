@@ -41,7 +41,8 @@ public sealed class AutonomousPaperShortPlannerTests
         Assert.NotNull(first);
         Assert.NotNull(second);
         Assert.True(first.Cycle.Risk.Approved);
-        Assert.Equal(OrderSide.Sell, first.ExecutionRequest.OrderId == Guid.Empty ? OrderSide.Buy : OrderSide.Sell);
+        Assert.NotEqual(Guid.Empty, first.ExecutionRequest.OrderId);
+        Assert.StartsWith($"session:{sessionId:N}:short:DEMO:", first.ExecutionRequest.IdempotencyKey, StringComparison.Ordinal);
         Assert.Equal(first.ExecutionRequest.OrderId, second.ExecutionRequest.OrderId);
         Assert.Equal(first.ExecutionRequest.IdempotencyKey, second.ExecutionRequest.IdempotencyKey);
         Assert.Equal("baseline-v1", first.ExecutionRequest.StrategyVersion);
