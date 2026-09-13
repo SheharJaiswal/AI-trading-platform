@@ -31,6 +31,27 @@ public sealed class EfMonitoringRunRepository(IDbContextFactory<TradingDbContext
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<int> RecoverStaleRunningAsync(DateTimeOffset startedBefore, DateTimeOffset recoveredAt, CancellationToken cancellationToken)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var staleRuns = await db.Set<MonitoringRunRecord>()
+            .Where(x => x.Status == MonitoringRunStatus.Running.ToString() && x.CompletedAt == null && x.StartedAt < startedBefore)
+            .ToListAsync(cancellationToken);
+
+        foreach (var record in staleRuns)
+        {
+            record.CompletedAt = recoveredAt;
+            record.Status = MonitoringRunStatus.Failed.ToString();
+            record.PositionCount = 0;
+            record.FailureCount = 1;
+        }
+
+        if (staleRuns.Count > 0)
+            await db.SaveChangesAsync(cancellationToken);
+
+        return staleRuns.Count;
+    }
+
     public async Task<MonitoringRunState?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
