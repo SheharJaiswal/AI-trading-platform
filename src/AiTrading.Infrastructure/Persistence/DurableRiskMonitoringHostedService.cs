@@ -26,7 +26,7 @@ public sealed class DurableRiskMonitoringHostedService(
             try
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
-                await scope.ServiceProvider.GetRequiredService<DurableRiskMonitor>().CheckOnceAsync(stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<MonitoringRunService>().RunOnceAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
