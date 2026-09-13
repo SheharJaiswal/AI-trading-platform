@@ -27,32 +27,16 @@ public sealed class DurableAutonomousPaperShortLifecycleService(
         if (execution.Fill is null)
             return new(execution, null);
 
-        var fill = execution.Fill;
-        var existing = await positions.GetAsync(fill.OrderId, cancellationToken);
-        if (existing is not null)
-        {
-            ValidateExistingPosition(existing, portfolioId, fill);
-            var replayStatus = execution.Status == "already-executed" ? "already-positioned" : "executed-and-positioned";
-            return new(execution with { Status = replayStatus }, existing);
-        }
-
         var position = await positions.OpenAsync(
-            fill.OrderId,
+            execution.Fill.OrderId,
             portfolioId,
-            fill.Symbol,
-            fill.Quantity,
-            fill.FillPrice,
-            fill.FilledAt,
+            execution.Fill.Symbol,
+            execution.Fill.Quantity,
+            execution.Fill.FillPrice,
+            execution.Fill.FilledAt,
             cancellationToken);
 
         var status = execution.Status == "already-executed" ? "already-positioned" : "executed-and-positioned";
         return new(execution with { Status = status }, position);
-    }
-
-    private static void ValidateExistingPosition(DurableShortPositionState existing, Guid portfolioId, FillState fill)
-    {
-        if (existing.PortfolioId != portfolioId || existing.Symbol != fill.Symbol ||
-            existing.OriginalQuantity != fill.Quantity || existing.AverageEntryPrice != fill.FillPrice)
-            throw new InvalidOperationException("Short position identity conflicts with the confirmed fill.");
     }
 }
