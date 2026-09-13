@@ -49,6 +49,53 @@ public sealed class MonitoringRunIntegrationTests
         Assert.True(Math.Abs((result.CompletedAt - record.CompletedAt!.Value).TotalMilliseconds) < 1);
     }
 
+    [Fact]
+    public async Task MonitoringRunService_RecoversOnlyStaleRunningRuns()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var staleId = Guid.NewGuid();
+        var freshId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        db.Set<MonitoringRunRecord>().AddRange(
+            new MonitoringRunRecord
+            {
+                Id = staleId,
+                StartedAt = now.AddMinutes(-10),
+                Status = MonitoringRunStatus.Running.ToString(),
+                PositionCount = 0,
+                FailureCount = 0
+            },
+            new MonitoringRunRecord
+            {
+                Id = freshId,
+                StartedAt = now.AddMinutes(-1),
+                Status = MonitoringRunStatus.Running.ToString(),
+                PositionCount = 0,
+                FailureCount = 0
+            });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        var runService = new MonitoringRunService(
+            new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(options), Guid.NewGuid(), new NoopAlertDelivery()),
+            new EfMonitoringRunRepository(new TestDbContextFactory(options)),
+            TimeProvider.System);
+
+        var recovered = await runService.RecoverStaleRunsAsync(TimeSpan.FromMinutes(5), CancellationToken.None);
+
+        Assert.Equal(1, recovered);
+        await using var verify = new TradingDbContext(options);
+        var stale = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == staleId);
+        var fresh = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == freshId);
+        Assert.Equal(MonitoringRunStatus.Failed.ToString(), stale.Status);
+        Assert.Equal(1, stale.FailureCount);
+        Assert.NotNull(stale.CompletedAt);
+        Assert.Equal(MonitoringRunStatus.Running.ToString(), fresh.Status);
+        Assert.Null(fresh.CompletedAt);
+    }
+
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
     {
         var connectionString = ConnectionString;
