@@ -131,6 +131,14 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task MonitoringRunHistory_Rejects_Malformed_Limit()
+    {
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/monitoring/runs?limit=not-a-number");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task RecoveryDiagnostic_Requires_Durable_Persistence()
     {
         using var client = factory.CreateClient();
