@@ -11,7 +11,7 @@ public sealed record DurableAutonomousPaperShortLifecycleResult(
 /// Position identity is derived from the filled order so retries cannot create a second position.
 /// </summary>
 public sealed class DurableAutonomousPaperShortLifecycleService(
-    AutonomousPaperShortExecutionCoordinator coordinator,
+    IAutonomousPaperShortExecutionCoordinator coordinator,
     DurablePaperShortCoverService positions)
 {
     public async Task<DurableAutonomousPaperShortLifecycleResult> ExecuteAsync(
