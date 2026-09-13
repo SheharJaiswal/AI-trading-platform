@@ -6,7 +6,7 @@ public sealed record AutonomousPaperShortPlan(
     Symbol Symbol,
     Recommendation Recommendation,
     PaperShortCyclePlan Cycle,
-    PaperShortExecutionRequest ExecutionRequest);
+    PaperShortExecutionRequest? ExecutionRequest);
 
 /// <summary>Builds, but does not route, a deterministic paper-short execution request.</summary>
 public static class AutonomousPaperShortPlanner
@@ -23,7 +23,7 @@ public static class AutonomousPaperShortPlanner
     {
         var cycle = PaperShortCyclePlanner.Plan(symbol, recommendation, quantity, entryPrice, currentPrice, stopLoss, targetPrice);
         if (cycle is null || !cycle.Risk.Approved)
-            return cycle is null ? null : new AutonomousPaperShortPlan(symbol, recommendation, cycle, default);
+            return cycle is null ? null : new AutonomousPaperShortPlan(symbol, recommendation, cycle, null);
 
         var idempotencyKey = $"session:{sessionId:N}:short:{symbol.Value}:{recommendation.GeneratedAt:yyyyMMddHHmmss}";
         var orderId = DeterministicGuid(idempotencyKey);
