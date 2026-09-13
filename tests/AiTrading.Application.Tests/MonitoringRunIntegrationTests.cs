@@ -145,6 +145,49 @@ public sealed class MonitoringRunIntegrationTests
     }
 
     [Fact]
+    public async Task MonitoringRunService_Honors_History_Limit_Of_One()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var now = DateTimeOffset.UtcNow;
+        var olderId = Guid.NewGuid();
+        var newerId = Guid.NewGuid();
+        db.Set<MonitoringRunRecord>().AddRange(
+            new MonitoringRunRecord
+            {
+                Id = olderId,
+                StartedAt = now.AddMinutes(-2),
+                CompletedAt = now.AddMinutes(-1),
+                Status = MonitoringRunStatus.Completed.ToString(),
+                PositionCount = 1,
+                FailureCount = 0
+            },
+            new MonitoringRunRecord
+            {
+                Id = newerId,
+                StartedAt = now,
+                CompletedAt = now,
+                Status = MonitoringRunStatus.Failed.ToString(),
+                PositionCount = 1,
+                FailureCount = 1
+            });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        var runService = new MonitoringRunService(
+            new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(options), Guid.NewGuid(), new NoopAlertDelivery()),
+            new EfMonitoringRunRepository(new TestDbContextFactory(options)),
+            TimeProvider.System);
+
+        var runs = await runService.GetRecentRunsAsync(1, CancellationToken.None);
+
+        Assert.Single(runs);
+        Assert.Equal(newerId, runs[0].Id);
+        Assert.Equal(MonitoringRunStatus.Failed, runs[0].Status);
+    }
+
+    [Fact]
     public async Task MonitoringRunService_Rejects_NonPositive_History_Limit()
     {
         await using var db = await CreateMigratedContextAsync();
