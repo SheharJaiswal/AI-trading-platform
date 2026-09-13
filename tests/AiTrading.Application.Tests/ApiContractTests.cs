@@ -115,9 +115,10 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public async Task MonitoringRunHistory_Rejects_NonPositive_Limit(int limit)
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("not-a-number")]
+    public async Task MonitoringRunHistory_Rejects_Invalid_Limit(string limit)
     {
         using var client = factory.WithWebHostBuilder(builder =>
         {
@@ -125,20 +126,6 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
             builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
         }).CreateClient();
         var response = await client.GetAsync($"/api/monitoring/runs?limit={limit}");
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal("INVALID_LIMIT", document.RootElement.GetProperty("errorCode").GetString());
-    }
-
-    [Fact]
-    public async Task MonitoringRunHistory_Rejects_Malformed_Limit()
-    {
-        using var client = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting("Persistence:MySql:Enabled", "true");
-            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
-        }).CreateClient();
-        var response = await client.GetAsync("/api/monitoring/runs?limit=not-a-number");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("INVALID_LIMIT", document.RootElement.GetProperty("errorCode").GetString());
