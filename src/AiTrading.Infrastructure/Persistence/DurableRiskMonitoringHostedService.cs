@@ -32,6 +32,7 @@ public sealed class DurableRiskMonitoringHostedService(
         {
             try
             {
+                await RecoverStaleRunsAsync(staleAfter, stoppingToken);
                 await using var scope = scopeFactory.CreateAsyncScope();
                 await scope.ServiceProvider.GetRequiredService<MonitoringRunService>().RunOnceAsync(stoppingToken);
             }
@@ -53,7 +54,7 @@ public sealed class DurableRiskMonitoringHostedService(
             await using var scope = scopeFactory.CreateAsyncScope();
             var recovered = await scope.ServiceProvider.GetRequiredService<MonitoringRunService>().RecoverStaleRunsAsync(staleAfter, cancellationToken);
             if (recovered > 0)
-                logger.LogWarning("Recovered {RecoveredMonitoringRuns} stale monitoring runs as failed during startup.", recovered);
+                logger.LogWarning("Recovered {RecoveredMonitoringRuns} stale monitoring runs as failed.", recovered);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -61,7 +62,7 @@ public sealed class DurableRiskMonitoringHostedService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unable to recover stale monitoring runs during startup; monitoring loop will continue.");
+            logger.LogError(ex, "Unable to recover stale monitoring runs; monitoring loop will continue.");
         }
     }
 }
