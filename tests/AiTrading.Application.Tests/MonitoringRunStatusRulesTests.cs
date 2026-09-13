@@ -27,4 +27,13 @@ public sealed class MonitoringRunStatusRulesTests
     {
         Assert.Throws<ArgumentException>(() => MonitoringRunStatusRules.Resolve(3, 1, 1));
     }
+
+    [Theory]
+    [InlineData(-1, 0, 0)]
+    [InlineData(1, -1, 2)]
+    [InlineData(1, 2, -1)]
+    public void NegativeCounts_AreRejected(int positionCount, int successCount, int failureCount)
+    {
+        Assert.Throws<ArgumentException>(() => MonitoringRunStatusRules.Resolve(positionCount, successCount, failureCount));
+    }
 }
