@@ -5,10 +5,24 @@ namespace AiTrading.Application;
 public sealed class DurablePaperShortCoverService(IDurableShortPositionRepository repository)
 {
     public async Task<DurableShortPositionState> OpenAsync(Guid portfolioId, Symbol symbol, int quantity, decimal entryPrice, DateTimeOffset now, CancellationToken ct)
+        => await OpenAsync(Guid.NewGuid(), portfolioId, symbol, quantity, entryPrice, now, ct);
+
+    public async Task<DurableShortPositionState> OpenAsync(Guid positionId, Guid portfolioId, Symbol symbol, int quantity, decimal entryPrice, DateTimeOffset now, CancellationToken ct)
     {
+        if (positionId == Guid.Empty) throw new ArgumentException("PositionId is required.", nameof(positionId));
+        if (portfolioId == Guid.Empty) throw new ArgumentException("PortfolioId is required.", nameof(portfolioId));
         if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be positive.");
         if (entryPrice <= 0) throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be positive.");
-        var position = DurablePaperShortPosition.Open(Guid.NewGuid(), portfolioId, symbol, quantity, entryPrice, now);
+
+        var existing = await repository.GetAsync(positionId, ct);
+        if (existing is not null)
+        {
+            if (existing.PortfolioId != portfolioId || existing.Symbol != symbol || existing.OriginalQuantity != quantity || existing.AverageEntryPrice != entryPrice)
+                throw new InvalidOperationException("Position id is already associated with different short-position details.");
+            return existing;
+        }
+
+        var position = DurablePaperShortPosition.Open(positionId, portfolioId, symbol, quantity, entryPrice, now);
         var state = ToState(position);
         await repository.AddAsync(state, ct);
         return state;
