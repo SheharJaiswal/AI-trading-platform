@@ -50,7 +50,7 @@ public sealed class MonitoringRunIntegrationTests
     }
 
     [Fact]
-    public async Task MonitoringRunService_RecoversOnlyStaleRunningRuns()
+    public async Task MonitoringRunService_RecoversOnlyStaleRunningRuns_AndIsIdempotent()
     {
         await using var db = await CreateMigratedContextAsync();
         var staleId = Guid.NewGuid();
@@ -84,8 +84,10 @@ public sealed class MonitoringRunIntegrationTests
             TimeProvider.System);
 
         var recovered = await runService.RecoverStaleRunsAsync(TimeSpan.FromMinutes(5), CancellationToken.None);
+        var recoveredAgain = await runService.RecoverStaleRunsAsync(TimeSpan.FromMinutes(5), CancellationToken.None);
 
         Assert.Equal(1, recovered);
+        Assert.Equal(0, recoveredAgain);
         await using var verify = new TradingDbContext(options);
         var stale = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == staleId);
         var fresh = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == freshId);
