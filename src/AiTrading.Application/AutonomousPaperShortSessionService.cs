@@ -41,8 +41,10 @@ public sealed class AutonomousPaperShortSessionService(
         if (session.Status != PaperTradingSessionStatus.Running)
             throw new InvalidOperationException($"Autonomous short cycle requires a running paper session; current state is {session.Status}.");
 
-        var symbol = session.Configuration.Symbols.FirstOrDefault()
-            ?? throw new InvalidOperationException("Paper session has no symbols configured.");
+        var symbol = session.Configuration.Symbols.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(symbol.Value))
+            throw new InvalidOperationException("Paper session has no symbols configured.");
+
         var quoteTask = marketData.GetQuoteAsync(symbol, cancellationToken);
         var recommendationTask = recommendations.GetRecommendationAsync(symbol, cancellationToken);
         await Task.WhenAll(quoteTask, recommendationTask);
