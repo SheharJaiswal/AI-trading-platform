@@ -104,6 +104,17 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task MonitoringRunHistory_Requires_Durable_Persistence()
+    {
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/monitoring/runs");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
+        Assert.Equal("Monitoring-run history requires MySQL persistence.", document.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task RecoveryDiagnostic_Requires_Durable_Persistence()
     {
         using var client = factory.CreateClient();
