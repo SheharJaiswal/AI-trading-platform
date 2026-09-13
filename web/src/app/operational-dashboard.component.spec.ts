@@ -16,12 +16,13 @@ describe('OperationalDashboardComponent', () => {
 
   afterEach(() => http.verify());
 
-  function flushDashboard(fixture: ComponentFixture<OperationalDashboardComponent>, aiProvider: string, marketProvider = 'demo') {
+  function flushDashboard(fixture: ComponentFixture<OperationalDashboardComponent>, aiProvider: string, marketProvider = 'demo', persistence = true) {
     fixture.detectChanges();
-    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider, aiProvider, persistence: true });
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider, aiProvider, persistence });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
+    if (persistence) http.expectOne('/api/monitoring/runs?limit=20').flush([]);
     fixture.detectChanges();
   }
 
@@ -34,14 +35,25 @@ describe('OperationalDashboardComponent', () => {
 
   it('shows in-memory persistence state when durable storage is disabled', () => {
     const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    flushDashboard(fixture, 'disabled', 'demo', false);
+    expect(fixture.nativeElement.textContent).toContain('IN-MEMORY');
+    expect(fixture.nativeElement.textContent).toContain('Default paper configuration');
+    expect(fixture.nativeElement.textContent).toContain('Monitoring history requires durable MySQL persistence.');
+  });
+
+  it('renders recent durable monitoring runs', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
     fixture.detectChanges();
-    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: false });
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: true });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
+    http.expectOne('/api/monitoring/runs?limit=20').flush([{ id: 'run-1', startedAt: '2026-09-13T10:00:00Z', completedAt: '2026-09-13T10:01:00Z', status: 'Completed', positionCount: 3, failureCount: 0 }, { id: 'run-2', startedAt: '2026-09-13T10:02:00Z', completedAt: null, status: 'Running', positionCount: 1, failureCount: 0 }]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('IN-MEMORY');
-    expect(fixture.nativeElement.textContent).toContain('Default paper configuration');
+    expect(fixture.nativeElement.textContent).toContain('Recent runs');
+    expect(fixture.nativeElement.textContent).toContain('Completed');
+    expect(fixture.nativeElement.textContent).toContain('Running');
+    expect(fixture.nativeElement.textContent).toContain('3');
   });
 
   it('surfaces configured local AI mode as advisory-only', () => {
