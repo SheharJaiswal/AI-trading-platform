@@ -58,7 +58,8 @@ public sealed class AutonomousPaperShortExecutionCoordinator(
             entryPrice,
             entryPrice,
             stopLoss,
-            targetPrice);
+            targetPrice,
+            quote.Timestamp.UtcDateTime.ToString("yyyyMMddHHmmssfff"));
 
         if (plan?.ExecutionRequest is null || !plan.Cycle.Risk.Approved)
             return NoTrade(plan?.Cycle.Risk.Reason ?? "SHORT_PLAN_UNAVAILABLE");
