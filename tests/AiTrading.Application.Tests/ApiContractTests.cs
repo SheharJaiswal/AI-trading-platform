@@ -104,6 +104,18 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task PaperSession_Audit_Requires_Durable_Persistence()
+    {
+        using var client = factory.CreateClient();
+        var sessionId = Guid.NewGuid();
+        var response = await client.GetAsync($"/api/paper-sessions/{sessionId}/audit");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
+        Assert.Equal("Paper session audit requires MySQL persistence.", document.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task MonitoringRunHistory_Requires_Durable_Persistence()
     {
         using var client = factory.CreateClient();
