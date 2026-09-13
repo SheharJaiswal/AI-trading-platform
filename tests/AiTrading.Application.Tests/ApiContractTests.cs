@@ -114,6 +114,22 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         Assert.Equal("Monitoring-run history requires MySQL persistence.", document.RootElement.GetProperty("message").GetString());
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task MonitoringRunHistory_Rejects_NonPositive_Limit(int limit)
+    {
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+        }).CreateClient();
+        var response = await client.GetAsync($"/api/monitoring/runs?limit={limit}");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_LIMIT", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
     [Fact]
     public async Task RecoveryDiagnostic_Requires_Durable_Persistence()
     {
