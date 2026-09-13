@@ -46,7 +46,7 @@ public sealed class MonitoringRunIntegrationTests
         Assert.Equal(0, record.PositionCount);
         Assert.Equal(0, record.FailureCount);
         Assert.NotNull(record.CompletedAt);
-        Assert.True(Math.Abs((result.CompletedAt!.Value - record.CompletedAt!.Value).TotalMilliseconds) < 1);
+        Assert.True(Math.Abs((result.CompletedAt - record.CompletedAt!.Value).TotalMilliseconds) < 1);
     }
 
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
