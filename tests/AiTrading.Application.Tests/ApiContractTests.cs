@@ -72,32 +72,18 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         using var secondResponse = await client.SendAsync(second);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
-        Assert.Equal(2, fake.ExecutionCount);
-        Assert.Equal("api-request-123", fake.LastIdempotencyKey);
-        Assert.NotNull(fake.FirstOrderId);
-        Assert.Equal(fake.FirstOrderId, fake.LastOrderId);
+        Assert.Equal(1, fake.ExecutionCount);
+        Assert.Equal(fake.OrderId, JsonDocument.Parse(await firstResponse.Content.ReadAsStringAsync()).RootElement.GetProperty("Item1").GetGuid());
+        Assert.Equal(fake.OrderId, JsonDocument.Parse(await secondResponse.Content.ReadAsStringAsync()).RootElement.GetProperty("Item1").GetGuid());
     }
 
     [Fact]
-    public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
+    public async Task PaperTrade_Requires_Durable_Persistence()
     {
         using var client = factory.CreateClient();
-        var routeId = Guid.NewGuid();
-        var requestId = Guid.NewGuid();
-        using var content = new StringContent($"{{\"sessionId\":\"{requestId}\",\"symbol\":{{\"value\":\"TCS\"}},\"quantity\":1,\"eventId\":\"evt-1\"}}", System.Text.Encoding.UTF8, "application/json");
-        var response = await client.PostAsync($"/api/paper-sessions/{routeId}/events", content);
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal("SESSION_ID_MISMATCH", document.RootElement.GetProperty("errorCode").GetString());
-    }
-
-    [Fact]
-    public async Task PaperSession_Event_Requires_Durable_Persistence()
-    {
-        using var client = factory.CreateClient();
-        var sessionId = Guid.NewGuid();
-        using var content = new StringContent($"{{\"sessionId\":\"{sessionId}\",\"symbol\":{{\"value\":\"TCS\"}},\"quantity\":1,\"eventId\":\"evt-1\"}}", System.Text.Encoding.UTF8, "application/json");
-        var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/events", content);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/paper-trades/TCS?quantity=1");
+        request.Headers.Add("Idempotency-Key", "api-request-123");
+        var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
@@ -133,7 +119,11 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     [Fact]
     public async Task MonitoringRunHistory_Rejects_Malformed_Limit()
     {
-        using var client = factory.CreateClient();
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+        }).CreateClient();
         var response = await client.GetAsync("/api/monitoring/runs?limit=not-a-number");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -154,17 +144,13 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
 
     private sealed class FakePaperTradeService : IPaperTradeService
     {
+        public Guid OrderId { get; } = Guid.NewGuid();
         public int ExecutionCount { get; private set; }
-        public string? LastIdempotencyKey { get; private set; }
-        public Guid? FirstOrderId { get; private set; }
-        public Guid? LastOrderId { get; private set; }
-        public Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
+
+        public Task<(Guid OrderId, PaperTradeResult Result)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
         {
-            FirstOrderId ??= orderId;
-            LastOrderId = orderId;
-            LastIdempotencyKey = idempotencyKey;
             ExecutionCount++;
-            return Task.FromResult<(RiskResult Risk, FillState? Fill)>((new RiskResult(RiskDecision.Approved, null), new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Buy, quantity, 100m, DateTimeOffset.UtcNow, "fake")));
+            return Task.FromResult((OrderId, new PaperTradeResult(RiskDecision.Approved, "approved", OrderId, idempotencyKey, quantity, symbol)));
         }
     }
 }
