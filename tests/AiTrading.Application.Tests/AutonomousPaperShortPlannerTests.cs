@@ -50,4 +50,20 @@ public sealed class AutonomousPaperShortPlannerTests
         Assert.Equal(105m, first.ExecutionRequest.StopLoss);
         Assert.Equal(94m, first.ExecutionRequest.TargetPrice);
     }
+
+    [Fact]
+    public void Plan_UsesExplicitCycleKeyForStableReplayIdentity()
+    {
+        var sessionId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var firstRecommendation = new Recommendation(new Symbol("DEMO"), RecommendationAction.Sell, 100m, null, .6m, 1, [], [], DateTimeOffset.Parse("2026-09-14T00:00:00Z"), "baseline-v1");
+        var replayRecommendation = firstRecommendation with { GeneratedAt = DateTimeOffset.Parse("2026-09-14T00:00:03Z") };
+
+        var first = AutonomousPaperShortPlanner.Plan(sessionId, firstRecommendation.Symbol, firstRecommendation, 1, 100m, 100m, 105m, 95m, "cycle-0001");
+        var replay = AutonomousPaperShortPlanner.Plan(sessionId, replayRecommendation.Symbol, replayRecommendation, 1, 100m, 100m, 105m, 95m, "cycle-0001");
+
+        Assert.NotNull(first);
+        Assert.NotNull(replay);
+        Assert.Equal(first.ExecutionRequest.IdempotencyKey, replay.ExecutionRequest.IdempotencyKey);
+        Assert.Equal(first.ExecutionRequest.OrderId, replay.ExecutionRequest.OrderId);
+    }
 }
