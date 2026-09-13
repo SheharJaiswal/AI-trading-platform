@@ -6,12 +6,15 @@ public static class MonitoringRunEndpointExtensions
 {
     public static void MapMonitoringRunEndpoints(this WebApplication app, bool persistenceEnabled)
     {
-        app.MapGet("/api/monitoring/runs", async (int? limit, IServiceProvider services, CancellationToken cancellationToken) =>
+        app.MapGet("/api/monitoring/runs", async (string? limit, IServiceProvider services, CancellationToken cancellationToken) =>
         {
             if (!persistenceEnabled)
                 return Results.Json(new { errorCode = "PERSISTENCE_DISABLED", message = "Monitoring-run history requires MySQL persistence." }, statusCode: 503);
 
-            var requestedLimit = limit ?? 20;
+            var requestedLimit = 20;
+            if (limit is not null && (!int.TryParse(limit, out requestedLimit) || requestedLimit <= 0))
+                return Results.BadRequest(new { errorCode = "INVALID_LIMIT", message = "Limit must be a positive integer." });
+
             try
             {
                 var service = services.GetRequiredService<MonitoringRunService>();
