@@ -28,6 +28,7 @@ public interface IMonitoringRunRepository
 {
     Task AddAsync(MonitoringRunState run, CancellationToken cancellationToken);
     Task CompleteAsync(Guid id, DateTimeOffset completedAt, MonitoringRunStatus status, int positionCount, int failureCount, CancellationToken cancellationToken);
+    Task<int> RecoverStaleRunningAsync(DateTimeOffset startedBefore, DateTimeOffset recoveredAt, CancellationToken cancellationToken);
     Task<MonitoringRunState?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyList<MonitoringRunState>> GetRecentAsync(int limit, CancellationToken cancellationToken);
 }
@@ -37,6 +38,15 @@ public sealed class MonitoringRunService(
     IMonitoringRunRepository repository,
     TimeProvider timeProvider)
 {
+    public async Task<int> RecoverStaleRunsAsync(TimeSpan staleAfter, CancellationToken cancellationToken)
+    {
+        if (staleAfter <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(staleAfter), "Stale monitoring-run age must be positive.");
+
+        var recoveredAt = timeProvider.GetUtcNow();
+        return await repository.RecoverStaleRunningAsync(recoveredAt - staleAfter, recoveredAt, cancellationToken);
+    }
+
     public async Task<MonitoringRunResult> RunOnceAsync(CancellationToken cancellationToken)
     {
         var startedAt = timeProvider.GetUtcNow();
