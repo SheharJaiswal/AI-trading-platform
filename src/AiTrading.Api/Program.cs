@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using AiTrading.Api;
 using AiTrading.Application;
 using AiTrading.Domain;
 using AiTrading.Infrastructure;

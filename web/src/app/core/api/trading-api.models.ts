@@ -2,6 +2,7 @@ export interface HealthStatus{status:string;mode:'paper'|string;marketProvider:s
 export interface PositionSnapshot{id:string;symbol:string;quantity:number;averageEntryPrice:number;stopLoss?:number}
 export interface PortfolioSnapshot{cash:number;positions?:PositionSnapshot[];unrealizedPnl?:number;realizedPnl?:number;[key:string]:unknown}
 export interface AlertSnapshot{key:string;severity:'Info'|'Warning'|'High'|'Critical'|string;message:string;createdAt:string;symbol?:string}
+export interface MonitoringRunSnapshot{id:string;startedAt:string;completedAt?:string|null;status:string;positionCount:number;failureCount:number}
 export interface MarketQuote{symbol:string;exchange:string;instrumentToken:string;timestamp:string;open:number;high:number;low:number;close:number;lastTradedPrice:number;volume:number;source:string;[key:string]:unknown}
 export interface Recommendation{symbol:string;action:'Buy'|'Hold'|'Sell'|'NoDecision'|string;referencePrice:number;expectedReturn?:number;confidence:number;horizonDays:number;supportingSignals:string[];riskFactors:string[];generatedAt:string;strategyVersion:string;[key:string]:unknown}
 export interface AiResearchRequest{symbol:string;question:string;evidence:string[]}
