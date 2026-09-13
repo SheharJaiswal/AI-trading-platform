@@ -38,6 +38,14 @@ public sealed class MonitoringRunService(
     IMonitoringRunRepository repository,
     TimeProvider timeProvider)
 {
+    public async Task<IReadOnlyList<MonitoringRunState>> GetRecentRunsAsync(int limit, CancellationToken cancellationToken)
+    {
+        if (limit <= 0)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Monitoring-run history limit must be positive.");
+
+        return await repository.GetRecentAsync(limit, cancellationToken);
+    }
+
     public async Task<int> RecoverStaleRunsAsync(TimeSpan staleAfter, CancellationToken cancellationToken)
     {
         if (staleAfter <= TimeSpan.Zero)
