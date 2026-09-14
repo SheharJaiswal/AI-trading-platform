@@ -1,3 +1,5 @@
+using AiTrading.Domain;
+
 namespace AiTrading.Application;
 
 /// <summary>
@@ -48,6 +50,27 @@ public static class DurableShortRecoveryReconciler
             return Fail("STATE_MISMATCH");
         if (ordered.Length > 0 && position.LastCoverPrice != ordered[^1].CoverPrice)
             return Fail("LAST_COVER_PRICE_MISMATCH");
+
+        return new DurableShortReconciliationResult(true, "CONSISTENT");
+    }
+
+    public static DurableShortReconciliationResult ReconcileExecution(
+        OrderState order,
+        FillState fill,
+        DurableShortPositionState position)
+    {
+        if (order.Side != OrderSide.Sell || !string.Equals(order.ExecutionMode, "paper", StringComparison.OrdinalIgnoreCase) || !string.Equals(order.Status, "short-open-filled", StringComparison.Ordinal))
+            return Fail("INVALID_SHORT_ORDER");
+        if (order.Id != fill.OrderId || fill.OrderId != position.Id)
+            return Fail("EXECUTION_POSITION_ID_MISMATCH");
+        if (fill.Side != OrderSide.Sell || fill.Quantity <= 0 || fill.FillPrice <= 0)
+            return Fail("INVALID_SHORT_FILL");
+        if (order.Quantity != fill.Quantity || order.Symbol != fill.Symbol || position.Symbol != fill.Symbol)
+            return Fail("EXECUTION_POSITION_DETAILS_MISMATCH");
+        if (position.OriginalQuantity != fill.Quantity || position.RemainingQuantity != fill.Quantity || position.AverageEntryPrice != fill.FillPrice)
+            return Fail("POSITION_FILL_MISMATCH");
+        if (position.RealizedPnl != 0m || position.LastCoverPrice is not null || position.Version != 0 || !string.Equals(position.State, "SHORT_OPEN", StringComparison.Ordinal))
+            return Fail("INVALID_OPEN_POSITION_STATE");
 
         return new DurableShortReconciliationResult(true, "CONSISTENT");
     }
