@@ -36,6 +36,11 @@ public sealed class AutonomousPaperShortSessionService(
         if (request.Quantity <= 0) throw new ArgumentOutOfRangeException(nameof(request.Quantity), "Quantity must be positive.");
         if (request.MaxMarketDataAgeSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(request.MaxMarketDataAgeSeconds), "Maximum market-data age must be positive.");
 
+        new AutonomousPaperShortExecutionOptions(
+            request.StopLossPercent,
+            request.TargetPercent,
+            TimeSpan.FromSeconds(request.MaxMarketDataAgeSeconds)).Validate();
+
         var session = await sessions.GetAsync(sessionId, cancellationToken)
             ?? throw new KeyNotFoundException($"Paper trading session {sessionId} does not exist.");
         if (session.Status != PaperTradingSessionStatus.Running)

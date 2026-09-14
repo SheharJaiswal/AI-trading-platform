@@ -30,6 +30,34 @@ public sealed class AutonomousPaperShortSessionServiceTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.RunAsync(Guid.NewGuid(), Guid.NewGuid(), new(quantity, .02m, .05m, 300), CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData(0, .05)]
+    [InlineData(1, .05)]
+    [InlineData(.02, 0)]
+    [InlineData(.02, 1)]
+    public async Task RunAsync_rejects_invalid_risk_percentages_before_session_or_market_data(decimal stopLossPercent, decimal targetPercent)
+    {
+        var sessions = new FakeSessions(null);
+        var market = new CountingMarketDataProvider();
+        var service = new AutonomousPaperShortSessionService(sessions, new RecommendationService(market), market, null!, null!);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.RunAsync(Guid.NewGuid(), Guid.NewGuid(), new(1, stopLossPercent, targetPercent, 300), CancellationToken.None));
+        Assert.Equal(0, market.QuoteCalls);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task RunAsync_rejects_invalid_market_data_age_before_session_or_market_data(int maxAgeSeconds)
+    {
+        var sessions = new FakeSessions(null);
+        var market = new CountingMarketDataProvider();
+        var service = new AutonomousPaperShortSessionService(sessions, new RecommendationService(market), market, null!, null!);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.RunAsync(Guid.NewGuid(), Guid.NewGuid(), new(1, .02m, .05m, maxAgeSeconds), CancellationToken.None));
+        Assert.Equal(0, market.QuoteCalls);
+    }
+
     private sealed class FakeSessions(PaperTradingSessionState? session) : IPaperTradingSessionService
     {
         public PaperTradingSessionState Session { get; } = session ?? new(Guid.NewGuid(), new([new Symbol("TEST", "123")], "1m", "baseline-v1", 1_000_000m), PaperTradingSessionStatus.Running, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
