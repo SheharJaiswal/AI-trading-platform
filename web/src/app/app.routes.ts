@@ -7,6 +7,7 @@ import { PaperSessionComponent } from './paper-session.component';
 import { EvaluationComponent } from './evaluation.component';
 import { OperationalDashboardComponent } from './operational-dashboard.component';
 import { RecoveryDiagnosticComponent } from './recovery-diagnostic.component';
+import { PaperShortCoverComponent } from './paper-short-cover.component';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -17,6 +18,7 @@ export const routes: Routes = [
   { path: 'portfolio', component: DashboardComponent },
   { path: 'paper-trade', component: PaperTradeComponent },
   { path: 'paper-session', component: PaperSessionComponent },
+  { path: 'paper-short-cover', component: PaperShortCoverComponent },
   { path: 'backtest', component: BacktestComponent },
   { path: 'evaluation', component: EvaluationComponent },
   { path: '**', redirectTo: 'dashboard' }
