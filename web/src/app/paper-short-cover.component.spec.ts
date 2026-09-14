@@ -1,5 +1,6 @@
 import {ComponentFixture,TestBed} from '@angular/core/testing';
 import {HttpClientTestingModule,HttpTestingController} from '@angular/common/http/testing';
+import {provideRouter} from '@angular/router';
 import {PaperShortCoverComponent} from './paper-short-cover.component';
 
 describe('PaperShortCoverComponent',()=>{
@@ -8,7 +9,7 @@ describe('PaperShortCoverComponent',()=>{
   let http:HttpTestingController;
 
   beforeEach(async()=>{
-    await TestBed.configureTestingModule({imports:[PaperShortCoverComponent,HttpClientTestingModule]}).compileComponents();
+    await TestBed.configureTestingModule({imports:[PaperShortCoverComponent,HttpClientTestingModule],providers:[provideRouter([])]}).compileComponents();
     fixture=TestBed.createComponent(PaperShortCoverComponent);
     component=fixture.componentInstance;
     http=TestBed.inject(HttpTestingController);
@@ -36,6 +37,7 @@ describe('PaperShortCoverComponent',()=>{
     request.flush({executionMode:'PAPER_ONLY',position:{id:'position-1',remainingQuantity:0,lastCoverPrice:98,realizedPnl:4, state:'SHORT_CLOSED',version:4}});
     expect(component.result?.position.state).toBe('SHORT_CLOSED');
     expect(component.message).toContain('Paper short cover');
+    expect(fixture.nativeElement.textContent).toContain('Inspect recovery diagnostics');
   });
 
   it('surfaces server rejection without implying a cover occurred',()=>{
