@@ -75,6 +75,10 @@ Configure `AutonomousLoop:Quantity` and `AutonomousLoop:MaxCandidates`. The Comp
 
 When MySQL persistence is enabled, `GET /api/paper-shorts/{positionId}/recovery` returns the persisted short position, its cover-operation ledger, and the deterministic V27 reconciliation result. This is a read-only diagnostic: it does not repair state, retry covers, liquidate, or call a broker.
 
+### Durable paper-short cover
+
+When MySQL persistence is enabled, `POST /api/paper-shorts/{positionId}/cover` records an explicit paper cover against a durable short position. The request requires an `Idempotency-Key`, an explicit cover price, cover quantity, and expected position version. The API returns `PAPER_ONLY` and delegates concurrency and idempotency enforcement to the existing durable cover service. It does not call a broker or automatically liquidate a position.
+
 ## Key endpoints
 
 - `GET /health`
@@ -82,6 +86,7 @@ When MySQL persistence is enabled, `GET /api/paper-shorts/{positionId}/recovery`
 - `GET /api/recommendations/{symbol}?instrumentToken=...`
 - `POST /api/paper-trades/{symbol}?instrumentToken=...&quantity=...`
 - `GET /api/paper-shorts/{positionId}/recovery`
+- `POST /api/paper-shorts/{positionId}/cover`
 - `POST /api/paper-sessions/{id}/run-cycle`
 - `POST /api/ai/research`
 - `GET /api/portfolio`
