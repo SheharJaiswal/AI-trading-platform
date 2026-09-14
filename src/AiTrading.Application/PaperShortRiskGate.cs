@@ -19,6 +19,9 @@ public static class PaperShortRiskGate
         if (stopLoss <= entryPrice)
             return new(false, "SHORT_STOP_MUST_BE_ABOVE_ENTRY");
 
+        if (targetPrice <= 0)
+            return new(false, "INVALID_TARGET_PRICE");
+
         if (targetPrice >= entryPrice)
             return new(false, "SHORT_TARGET_MUST_BE_BELOW_ENTRY");
 
