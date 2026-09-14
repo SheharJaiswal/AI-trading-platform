@@ -119,7 +119,7 @@ public sealed class RiskMonitor(IMarketDataProvider marketData, IPortfolio portf
     }
 }
 
-public sealed class PaperPortfolio(decimal startingCash) 
+public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
 {
     private decimal _cash = startingCash;
     private decimal _realized;
