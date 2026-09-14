@@ -122,6 +122,66 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task AutonomousShortCycle_Requires_Durable_Persistence()
+    {
+        using var client = factory.CreateClient();
+        var sessionId = Guid.NewGuid();
+        using var content = new StringContent("{\"quantity\":1,\"stopLossPercent\":0.02,\"targetPercent\":0.05,\"maxMarketDataAgeSeconds\":300}", System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/run-short-cycle", content);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
+    public async Task AutonomousShortCycle_Rejects_Invalid_Quantity_Before_External_IO()
+    {
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+        }).CreateClient();
+        var sessionId = Guid.NewGuid();
+        using var content = new StringContent("{\"quantity\":0,\"stopLossPercent\":0.02,\"targetPercent\":0.05,\"maxMarketDataAgeSeconds\":300}", System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/run-short-cycle", content);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_SHORT_CYCLE_CONFIGURATION", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
+    public async Task AutonomousShortCycle_Rejects_Invalid_Risk_Percent_Before_External_IO()
+    {
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+        }).CreateClient();
+        var sessionId = Guid.NewGuid();
+        using var content = new StringContent("{\"quantity\":1,\"stopLossPercent\":1,\"targetPercent\":0.05,\"maxMarketDataAgeSeconds\":300}", System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/run-short-cycle", content);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_SHORT_CYCLE_CONFIGURATION", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
+    public async Task AutonomousShortCycle_Rejects_Invalid_Market_Data_Age_Before_External_IO()
+    {
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+        }).CreateClient();
+        var sessionId = Guid.NewGuid();
+        using var content = new StringContent("{\"quantity\":1,\"stopLossPercent\":0.02,\"targetPercent\":0.05,\"maxMarketDataAgeSeconds\":0}", System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"/api/paper-sessions/{sessionId}/run-short-cycle", content);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_SHORT_CYCLE_CONFIGURATION", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
     public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
     {
         using var client = factory.CreateClient();
