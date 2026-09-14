@@ -19,7 +19,8 @@ A spec-driven AI-assisted trading platform built around deterministic financial 
 - Persisted backtest run configuration, result, simulated trades and risk ledger
 - Prediction/outcome recording and deterministic evaluation metrics
 - Deterministic autonomous paper-session cycle with ranked candidates and no-decision outcomes
-- Angular research, paper-trading and backtesting workspaces
+- Explicit autonomous paper-short session cycle with durable short-position linkage
+- Angular research, paper-trading, paper-session and backtesting workspaces
 - OpenAPI, health endpoint and automated .NET + Angular CI
 
 ## Safety boundary
@@ -71,6 +72,12 @@ A running paper session can execute one deterministic autonomous cycle through `
 
 Configure `AutonomousLoop:Quantity` and `AutonomousLoop:MaxCandidates`. The Compose defaults are 1 for both. The cycle is deliberately an explicit operation in this delivery slice; always-on scheduling and market-hours rules remain separate business decisions.
 
+### Autonomous paper-short session cycle
+
+A running paper session can execute one explicitly configured bearish paper-short attempt through `POST /api/paper-sessions/{id}/run-short-cycle`. The request supplies quantity, stop-loss percentage, target percentage, and maximum market-data age. The server validates configuration before IO, requires a bearish recommendation and fresh symbol-matched quote, reuses the deterministic short risk gate, persists the confirmed paper fill, and links that fill to a durable short position. Replays use deterministic idempotency identity. Rejected or stale paths are no-trade outcomes.
+
+The Angular Paper Session workspace exposes these controls directly. There is no live broker routing, automatic liquidation, or AI risk override.
+
 ### Durable short recovery diagnostics
 
 When MySQL persistence is enabled, `GET /api/paper-shorts/{positionId}/recovery` returns the persisted short position, its cover-operation ledger, and the deterministic V27 reconciliation result. This is a read-only diagnostic: it does not repair state, retry covers, liquidate, or call a broker.
@@ -88,6 +95,7 @@ When MySQL persistence is enabled, `POST /api/paper-shorts/{positionId}/cover` r
 - `GET /api/paper-shorts/{positionId}/recovery`
 - `POST /api/paper-shorts/{positionId}/cover`
 - `POST /api/paper-sessions/{id}/run-cycle`
+- `POST /api/paper-sessions/{id}/run-short-cycle`
 - `POST /api/ai/research`
 - `GET /api/portfolio`
 - `GET /api/alerts`
