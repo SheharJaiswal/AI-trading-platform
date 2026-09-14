@@ -37,6 +37,21 @@ public sealed class DurablePaperShortCoverServiceTests
     }
 
     [Fact]
+    public async Task Open_replay_returns_existing_position_without_duplicate_add()
+    {
+        var repository = new FakeRepository();
+        var service = new DurablePaperShortCoverService(repository);
+        var positionId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        var first = await service.OpenAsync(positionId, Guid.NewGuid(), new Symbol("TEST"), 3, 100m, now, CancellationToken.None);
+        var replay = await service.OpenAsync(positionId, first.PortfolioId, first.Symbol, first.OriginalQuantity, first.AverageEntryPrice, now.AddSeconds(1), CancellationToken.None);
+
+        Assert.Equal(first, replay);
+        Assert.Equal(1, repository.AddCount);
+    }
+
+    [Fact]
     public async Task Invalid_cover_values_are_rejected_before_repository_call()
     {
         var repository = new FakeRepository();
@@ -52,9 +67,10 @@ public sealed class DurablePaperShortCoverServiceTests
     {
         private DurableShortPositionState? position;
         public string? LastKey { get; private set; }
+        public int AddCount { get; private set; }
         public Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult(position?.Id == positionId ? position : null);
         public Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<DurableShortCoverState>>([]);
-        public Task AddAsync(DurableShortPositionState value, CancellationToken cancellationToken) { position = value; return Task.CompletedTask; }
+        public Task AddAsync(DurableShortPositionState value, CancellationToken cancellationToken) { position = value; AddCount++; return Task.CompletedTask; }
         public Task<DurableShortPositionState> ApplyCoverAsync(Guid positionId, string idempotencyKey, decimal coverPrice, int coverQuantity, long expectedVersion, DateTimeOffset now, CancellationToken cancellationToken)
         {
             LastKey = idempotencyKey;
