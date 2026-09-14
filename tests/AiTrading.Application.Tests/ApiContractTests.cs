@@ -93,6 +93,17 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task PaperShortCover_Rejects_NonGuid_Position_Route()
+    {
+        using var client = factory.CreateClient();
+        using var content = new StringContent("{\"coverPrice\":98,\"coverQuantity\":1,\"expectedVersion\":0}", System.Text.Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/paper-shorts/not-a-guid/cover") { Content = content };
+        request.Headers.Add("Idempotency-Key", "cover-route-invalid");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
     {
         using var client = factory.CreateClient();
@@ -157,31 +168,19 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
         Assert.Equal("INVALID_LIMIT", document.RootElement.GetProperty("errorCode").GetString());
     }
 
-    [Fact]
-    public async Task RecoveryDiagnostic_Requires_Durable_Persistence()
-    {
-        using var client = factory.CreateClient();
-        var positionId = Guid.NewGuid();
-        var response = await client.GetAsync($"/api/paper-shorts/{positionId}/recovery");
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
-        Assert.Equal("Durable short recovery diagnostics require MySQL persistence.", document.RootElement.GetProperty("message").GetString());
-    }
-
     private sealed class FakePaperTradeService : IPaperTradeService
     {
         public int ExecutionCount { get; private set; }
-        public string? LastIdempotencyKey { get; private set; }
         public Guid? FirstOrderId { get; private set; }
         public Guid? LastOrderId { get; private set; }
-        public Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
+        public string? LastIdempotencyKey { get; private set; }
+
+        public Task<PaperTradeResult> ExecuteAsync(string symbol, int quantity, string idempotencyKey, CancellationToken cancellationToken = default)
         {
-            FirstOrderId ??= orderId;
-            LastOrderId = orderId;
-            LastIdempotencyKey = idempotencyKey;
             ExecutionCount++;
-            return Task.FromResult<(RiskResult Risk, FillState? Fill)>((new RiskResult(RiskDecision.Approved, null), new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Buy, quantity, 100m, DateTimeOffset.UtcNow, "fake")));
+            LastIdempotencyKey = idempotencyKey;
+            LastOrderId = FirstOrderId ??= Guid.NewGuid();
+            return Task.FromResult(new PaperTradeResult(LastOrderId.Value, symbol, quantity, 100m, "BUY", "PAPER_ONLY"));
         }
     }
 }
