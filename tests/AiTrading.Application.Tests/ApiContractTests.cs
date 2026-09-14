@@ -104,6 +104,24 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task PaperShortCover_Rejects_Negative_Expected_Version()
+    {
+        using var client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Persistence:MySql:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:MySql", "Server=localhost;Port=3306;Database=ai_trading_test;User=root;Password=test;");
+        }).CreateClient();
+        var positionId = Guid.NewGuid();
+        using var content = new StringContent("{\"coverPrice\":98,\"coverQuantity\":1,\"expectedVersion\":-1}", System.Text.Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/paper-shorts/{positionId}/cover") { Content = content };
+        request.Headers.Add("Idempotency-Key", "cover-negative-version");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_SHORT_COVER", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
     public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
     {
         using var client = factory.CreateClient();
