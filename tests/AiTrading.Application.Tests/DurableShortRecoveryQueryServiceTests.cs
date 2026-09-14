@@ -9,29 +9,10 @@ public sealed class DurableShortRecoveryQueryServiceTests
     public async Task GetAsync_ReturnsPositionCoversAndReconciliation()
     {
         var position = new DurableShortPositionState(
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-            new Symbol("DEMO", "123"),
-            5,
-            2,
-            100m,
-            104m,
-            -8m,
-            "SHORT_PARTIALLY_COVERED",
-            DateTimeOffset.Parse("2026-09-14T00:00:00Z"),
-            DateTimeOffset.Parse("2026-09-14T00:01:00Z"),
-            1);
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), new Symbol("DEMO", "123"), 5, 2, 100m, 104m, -8m, "SHORT_PARTIALLY_COVERED", DateTimeOffset.Parse("2026-09-14T00:00:00Z"), DateTimeOffset.Parse("2026-09-14T00:01:00Z"), 1);
         var cover = new DurableShortCoverState(
-            Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-            position.Id,
-            "cover-1",
-            104m,
-            3,
-            -12m,
-            1,
-            DateTimeOffset.Parse("2026-09-14T00:01:00Z"));
-        var repository = new FakeUnitOfWorkFactory(position, cover);
-        var service = new DurableShortRecoveryQueryService(repository);
+            Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"), position.Id, "cover-1", 104m, 3, -12m, 1, DateTimeOffset.Parse("2026-09-14T00:01:00Z"));
+        var service = new DurableShortRecoveryQueryService(new FakeUnitOfWorkFactory(position, cover));
 
         var result = await service.GetAsync(position.Id, CancellationToken.None);
 
@@ -45,8 +26,7 @@ public sealed class DurableShortRecoveryQueryServiceTests
     [Fact]
     public async Task GetAsync_ReturnsNullWhenPositionDoesNotExist()
     {
-        var missing = Guid.NewGuid();
-        var result = await new DurableShortRecoveryQueryService(new FakeUnitOfWorkFactory(null, null)).GetAsync(missing, CancellationToken.None);
+        var result = await new DurableShortRecoveryQueryService(new FakeUnitOfWorkFactory(null, null)).GetAsync(Guid.NewGuid(), CancellationToken.None);
         Assert.Null(result);
     }
 
@@ -57,11 +37,17 @@ public sealed class DurableShortRecoveryQueryServiceTests
 
     private sealed class FakeUnitOfWork(DurableShortPositionState? position, DurableShortCoverState? cover) : ITradingUnitOfWork
     {
+        public IPortfolioRepository Portfolios => throw new NotSupportedException();
+        public IOrderRepository Orders => throw new NotSupportedException();
         public IDurableShortPositionRepository DurableShortPositions { get; } = new FakeRepository(position, cover);
+        public IPaperTradingEventAuditRepository PaperTradingEventAudits => throw new NotSupportedException();
+        public IAlertRepository Alerts => throw new NotSupportedException();
+        public IMarketDataSnapshotRepository MarketDataSnapshots => throw new NotSupportedException();
+        public IHistoricalCandleRepository HistoricalCandles => throw new NotSupportedException();
+        public IBacktestRunRepository BacktestRuns => throw new NotSupportedException();
+        public IBacktestAuditRepository BacktestAudit => throw new NotSupportedException();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public IOrderRepository Orders => throw new NotSupportedException();
-        public IPaperTradingEventAuditRepository PaperTradingEventAudits => throw new NotSupportedException();
     }
 
     private sealed class FakeRepository(DurableShortPositionState? position, DurableShortCoverState? cover) : IDurableShortPositionRepository
