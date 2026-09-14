@@ -34,7 +34,8 @@ describe('PaperShortCoverComponent',()=>{
     expect(request.request.method).toBe('POST');
     expect(request.request.headers.get('Idempotency-Key')).toBe('cover-1');
     expect(request.request.body).toEqual({coverPrice:98,coverQuantity:2,expectedVersion:3});
-    request.flush({executionMode:'PAPER_ONLY',position:{id:'position-1',remainingQuantity:0,lastCoverPrice:98,realizedPnl:4, state:'SHORT_CLOSED',version:4}});
+    request.flush({executionMode:'PAPER_ONLY',position:{id:'position-1',remainingQuantity:0,lastCoverPrice:98,realizedPnl:4,state:'SHORT_CLOSED',version:4}});
+    fixture.detectChanges();
     expect(component.result?.position.state).toBe('SHORT_CLOSED');
     expect(component.message).toContain('Paper short cover');
     expect(fixture.nativeElement.textContent).toContain('Inspect recovery diagnostics');
