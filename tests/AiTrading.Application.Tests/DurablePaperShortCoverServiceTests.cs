@@ -60,6 +60,7 @@ public sealed class DurablePaperShortCoverServiceTests
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.CoverAsync(opened.Id, "cover-1", 0m, 1, opened.Version, DateTimeOffset.UtcNow, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.CoverAsync(opened.Id, "cover-2", 95m, 0, opened.Version, DateTimeOffset.UtcNow, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.CoverAsync(opened.Id, "cover-3", 95m, 1, -1, DateTimeOffset.UtcNow, CancellationToken.None));
         Assert.Null(repository.LastKey);
     }
 
