@@ -53,9 +53,18 @@ public sealed class RecommendationService(IMarketDataProvider marketData, Market
     public async Task<Recommendation> GetRecommendationAsync(Symbol symbol, CancellationToken cancellationToken)
     {
         var quote = await marketData.GetQuoteAsync(symbol, cancellationToken);
+        return await GetRecommendationAsync(symbol, quote, cancellationToken);
+    }
+
+    /// <summary>
+    /// Evaluates a recommendation against a caller-supplied quote so workflows that already fetched
+    /// market data can reuse the exact same snapshot for freshness validation and signal generation.
+    /// </summary>
+    public async Task<Recommendation> GetRecommendationAsync(Symbol symbol, MarketQuote quote, CancellationToken cancellationToken)
+    {
         var now = DateTimeOffset.UtcNow;
         var age = now - quote.Timestamp;
-        if (quote.Timestamp > now || age > _freshness.MaxAge)
+        if (quote.Symbol != symbol || quote.Timestamp > now || age > _freshness.MaxAge || quote.LastTradedPrice <= 0)
             return new(symbol, RecommendationAction.NoDecision, quote.LastTradedPrice, null, 0, 1, [], ["STALE_OR_INVALID_MARKET_DATA"], now, "baseline-v1");
 
         var candles = await marketData.GetCandlesAsync(symbol, quote.Timestamp.AddDays(-40), quote.Timestamp, cancellationToken);
@@ -110,7 +119,7 @@ public sealed class RiskMonitor(IMarketDataProvider marketData, IPortfolio portf
     }
 }
 
-public sealed class PaperPortfolio(decimal startingCash) : IPortfolio
+public sealed class PaperPortfolio(decimal startingCash) 
 {
     private decimal _cash = startingCash;
     private decimal _realized;
