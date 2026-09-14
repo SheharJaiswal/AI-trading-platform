@@ -93,6 +93,17 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task PaperShortCover_Rejects_NonGuid_Position_Route()
+    {
+        using var client = factory.CreateClient();
+        using var content = new StringContent("{\"coverPrice\":98,\"coverQuantity\":1,\"expectedVersion\":0}", System.Text.Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/paper-shorts/not-a-guid/cover") { Content = content };
+        request.Headers.Add("Idempotency-Key", "cover-route-invalid");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
     {
         using var client = factory.CreateClient();
