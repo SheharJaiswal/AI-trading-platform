@@ -52,6 +52,10 @@ describe('PaperSessionComponent',()=>{
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({quantity:3,stopLossPercent:.03,targetPercent:.07,maxMarketDataAgeSeconds:120});
     request.flush({execution:{status:'executed',risk:{decision:'Approved'},fill:{orderId:'order-1',quantity:3,price:100}},position:{id:'position-1',quantity:3,entryPrice:100,stopLoss:103,targetPrice:93,state:'SHORT_OPEN'}});
+    const audit=http.expectOne('/api/paper-sessions/session-1/audit');
+    audit.flush({events:[],orders:[],fills:[],executionMode:'PAPER_ONLY'});
+    const portfolio=http.expectOne('/api/portfolio');
+    portfolio.flush({cash:100000,positions:[],unrealizedPnl:0,realizedPnl:0});
     expect(component.shortCycle?.execution.status).toBe('executed');
     expect(component.shortCycle?.position?.id).toBe('position-1');
   });
