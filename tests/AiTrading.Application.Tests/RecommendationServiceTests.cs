@@ -19,6 +19,23 @@ public class RecommendationServiceTests
     }
 
     [Fact]
+    public async Task Reuses_Caller_Supplied_Quote_Without_Reading_Another_Quote()
+    {
+        var symbol = new Symbol("TCS", "11536");
+        var quote = new MarketQuote(symbol, "NSE", "11536", DateTimeOffset.UtcNow, 100, 101, 99, 110, 110, 1000, "test");
+        var candles = Enumerable.Range(0, 20)
+            .Select(i => new Candle(DateTimeOffset.UtcNow.AddDays(-20 + i), 100, 101, 99, 100, 1000))
+            .ToArray();
+        var market = new CountingMarketData(quote, candles);
+        var service = new RecommendationService(market);
+
+        await service.GetRecommendationAsync(symbol, quote, CancellationToken.None);
+
+        Assert.Equal(0, market.QuoteCalls);
+        Assert.Equal(1, market.CandleCalls);
+    }
+
+    [Fact]
     public async Task Returns_NoDecision_When_History_Is_Insufficient()
     {
         var symbol = new Symbol("TCS", "11536");
@@ -70,5 +87,21 @@ public class RecommendationServiceTests
     {
         public Task<MarketQuote> GetQuoteAsync(Symbol symbol, CancellationToken cancellationToken) => Task.FromResult(quote);
         public Task<IReadOnlyList<Candle>> GetCandlesAsync(Symbol symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) => Task.FromResult(candles);
+    }
+
+    private sealed class CountingMarketData(MarketQuote quote, IReadOnlyList<Candle> candles) : IMarketDataProvider
+    {
+        public int QuoteCalls { get; private set; }
+        public int CandleCalls { get; private set; }
+        public Task<MarketQuote> GetQuoteAsync(Symbol symbol, CancellationToken cancellationToken)
+        {
+            QuoteCalls++;
+            return Task.FromResult(quote);
+        }
+        public Task<IReadOnlyList<Candle>> GetCandlesAsync(Symbol symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken)
+        {
+            CandleCalls++;
+            return Task.FromResult(candles);
+        }
     }
 }
