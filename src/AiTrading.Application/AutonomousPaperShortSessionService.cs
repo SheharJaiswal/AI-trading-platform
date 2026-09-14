@@ -36,10 +36,11 @@ public sealed class AutonomousPaperShortSessionService(
         if (request.Quantity <= 0) throw new ArgumentOutOfRangeException(nameof(request.Quantity), "Quantity must be positive.");
         if (request.MaxMarketDataAgeSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(request.MaxMarketDataAgeSeconds), "Maximum market-data age must be positive.");
 
-        new AutonomousPaperShortExecutionOptions(
+        var options = new AutonomousPaperShortExecutionOptions(
             request.StopLossPercent,
             request.TargetPercent,
-            TimeSpan.FromSeconds(request.MaxMarketDataAgeSeconds)).Validate();
+            TimeSpan.FromSeconds(request.MaxMarketDataAgeSeconds));
+        options.Validate();
 
         var session = await sessions.GetAsync(sessionId, cancellationToken)
             ?? throw new KeyNotFoundException($"Paper trading session {sessionId} does not exist.");
@@ -50,18 +51,12 @@ public sealed class AutonomousPaperShortSessionService(
         if (string.IsNullOrWhiteSpace(symbol.Value))
             throw new InvalidOperationException("Paper session has no symbols configured.");
 
-        var quoteTask = marketData.GetQuoteAsync(symbol, cancellationToken);
-        var recommendationTask = recommendations.GetRecommendationAsync(symbol, cancellationToken);
-        await Task.WhenAll(quoteTask, recommendationTask);
-        var quote = await quoteTask;
-        var recommendation = await recommendationTask;
+        // Fetch one quote snapshot and reuse it for recommendation generation and short gating.
+        // This avoids racing two quote reads and executing against a different price than the signal saw.
+        var quote = await marketData.GetQuoteAsync(symbol, cancellationToken);
+        var recommendation = await recommendations.GetRecommendationAsync(symbol, quote, cancellationToken);
 
-        var coordinator = new AutonomousPaperShortExecutionCoordinator(
-            execution,
-            new AutonomousPaperShortExecutionOptions(
-                request.StopLossPercent,
-                request.TargetPercent,
-                TimeSpan.FromSeconds(request.MaxMarketDataAgeSeconds)));
+        var coordinator = new AutonomousPaperShortExecutionCoordinator(execution, options);
         var lifecycle = new DurableAutonomousPaperShortLifecycleService(coordinator, positions);
         var result = await lifecycle.ExecuteAsync(sessionId, portfolioId, symbol, recommendation, quote, request.Quantity, cancellationToken);
         return new(sessionId, symbol, recommendation, quote, result.Execution, result.Position);
