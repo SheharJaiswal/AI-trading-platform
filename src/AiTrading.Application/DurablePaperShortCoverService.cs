@@ -33,6 +33,7 @@ public sealed class DurablePaperShortCoverService(IDurableShortPositionRepositor
         if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 128) throw new ArgumentException("Idempotency key is required and must be 1-128 characters.", nameof(idempotencyKey));
         if (coverPrice <= 0) throw new ArgumentOutOfRangeException(nameof(coverPrice), "Cover price must be positive.");
         if (coverQuantity <= 0) throw new ArgumentOutOfRangeException(nameof(coverQuantity), "Cover quantity must be positive.");
+        if (expectedVersion < 0) throw new ArgumentOutOfRangeException(nameof(expectedVersion), "Expected position version cannot be negative.");
         return await repository.ApplyCoverAsync(positionId, idempotencyKey, coverPrice, coverQuantity, expectedVersion, now, ct);
     }
 
