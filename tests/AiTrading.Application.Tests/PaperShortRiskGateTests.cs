@@ -23,6 +23,15 @@ public sealed class PaperShortRiskGateTests
     }
 
     [Fact]
+    public void Validate_RejectsNonPositiveTarget()
+    {
+        var result = PaperShortRiskGate.Validate(1, 100m, 105m, 0m);
+
+        Assert.False(result.Approved);
+        Assert.Equal("INVALID_TARGET_PRICE", result.Reason);
+    }
+
+    [Fact]
     public void Validate_RejectsTargetAtOrAboveEntry()
     {
         var result = PaperShortRiskGate.Validate(1, 100m, 105m, 100m);

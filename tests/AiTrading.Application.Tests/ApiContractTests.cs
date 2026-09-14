@@ -79,6 +79,20 @@ public class ApiContractTests(WebApplicationFactory<Program> factory) : IClassFi
     }
 
     [Fact]
+    public async Task PaperShortCover_Requires_Durable_Persistence()
+    {
+        using var client = factory.CreateClient();
+        var positionId = Guid.NewGuid();
+        using var content = new StringContent("{\"coverPrice\":98,\"coverQuantity\":1,\"expectedVersion\":0}", System.Text.Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/paper-shorts/{positionId}/cover") { Content = content };
+        request.Headers.Add("Idempotency-Key", "cover-1");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("PERSISTENCE_DISABLED", document.RootElement.GetProperty("errorCode").GetString());
+    }
+
+    [Fact]
     public async Task PaperSession_Event_Rejects_Route_Request_Id_Mismatch()
     {
         using var client = factory.CreateClient();
