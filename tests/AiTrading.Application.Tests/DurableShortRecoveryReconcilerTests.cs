@@ -142,4 +142,20 @@ public sealed class DurableShortRecoveryReconcilerTests
         Assert.False(result.IsConsistent);
         Assert.Equal("INVALID_SHORT_ORDER", result.Reason);
     }
+
+    [Fact]
+    public void Live_fill_provider_is_rejected_even_when_order_is_marked_paper()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var now = DateTimeOffset.UtcNow;
+        var order = new OrderState(orderId, "short-1", symbol, symbol.InstrumentToken, OrderSide.Sell, 5, 100m, "baseline-v1", now, "paper", "short-open-filled");
+        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Sell, 5, 99.5m, now.AddMilliseconds(1), "live");
+        var position = new DurableShortPositionState(orderId, Guid.NewGuid(), symbol, 5, 5, 99.5m, null, 0m, "SHORT_OPEN", now.AddMilliseconds(1), now.AddMilliseconds(1), 0);
+
+        var result = DurableShortRecoveryReconciler.ReconcileExecution(order, fill, position);
+
+        Assert.False(result.IsConsistent);
+        Assert.Equal("INVALID_SHORT_FILL", result.Reason);
+    }
 }
