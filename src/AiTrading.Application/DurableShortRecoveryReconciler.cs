@@ -63,7 +63,7 @@ public static class DurableShortRecoveryReconciler
             return Fail("INVALID_SHORT_ORDER");
         if (order.Id != fill.OrderId || fill.OrderId != position.Id)
             return Fail("EXECUTION_POSITION_ID_MISMATCH");
-        if (fill.Side != OrderSide.Sell || fill.Quantity <= 0 || fill.FillPrice <= 0)
+        if (fill.Side != OrderSide.Sell || fill.Quantity <= 0 || fill.FillPrice <= 0 || !string.Equals(fill.ExecutionProvider, "paper", StringComparison.OrdinalIgnoreCase))
             return Fail("INVALID_SHORT_FILL");
         if (order.Quantity != fill.Quantity || order.Symbol != fill.Symbol || position.Symbol != fill.Symbol)
             return Fail("EXECUTION_POSITION_DETAILS_MISMATCH");
