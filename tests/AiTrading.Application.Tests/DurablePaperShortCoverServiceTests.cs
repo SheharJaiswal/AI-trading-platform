@@ -64,6 +64,67 @@ public sealed class DurablePaperShortCoverServiceTests
         Assert.Null(repository.LastKey);
     }
 
+    [Fact]
+    public async Task Autonomous_lifecycle_creates_position_from_confirmed_paper_fill()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var fill = new FillState(orderId, orderId, symbol, OrderSide.Sell, 5, 100m, DateTimeOffset.UtcNow, "paper");
+        var coordinator = new FakeCoordinator(new(new(RiskDecision.Approved, null), fill, "executed"));
+        var repository = new FakeRepository();
+        var service = new DurableAutonomousPaperShortLifecycleService(coordinator, new DurablePaperShortCoverService(repository));
+        var portfolioId = Guid.NewGuid();
+
+        var result = await service.ExecuteAsync(Guid.NewGuid(), portfolioId, symbol, null!, null!, 5, CancellationToken.None);
+
+        Assert.NotNull(result.Position);
+        Assert.Equal(orderId, result.Position!.Id);
+        Assert.Equal(portfolioId, result.Position.PortfolioId);
+        Assert.Equal(5, result.Position.RemainingQuantity);
+        Assert.Equal(100m, result.Position.AverageEntryPrice);
+        Assert.Equal("executed-and-positioned", result.Execution.Status);
+        Assert.Equal(1, repository.AddCount);
+    }
+
+    [Fact]
+    public async Task Autonomous_lifecycle_replay_reuses_position_identity_without_duplicate_add()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var fill = new FillState(orderId, orderId, symbol, OrderSide.Sell, 3, 100m, DateTimeOffset.UtcNow, "paper");
+        var coordinator = new FakeCoordinator(new(new(RiskDecision.Approved, null), fill, "already-executed"));
+        var repository = new FakeRepository();
+        var service = new DurableAutonomousPaperShortLifecycleService(coordinator, new DurablePaperShortCoverService(repository));
+        var portfolioId = Guid.NewGuid();
+
+        var first = await service.ExecuteAsync(Guid.NewGuid(), portfolioId, symbol, null!, null!, 3, CancellationToken.None);
+        var replay = await service.ExecuteAsync(Guid.NewGuid(), portfolioId, symbol, null!, null!, 3, CancellationToken.None);
+
+        Assert.Equal(first.Position, replay.Position);
+        Assert.Equal("already-positioned", replay.Execution.Status);
+        Assert.Equal(1, repository.AddCount);
+    }
+
+    [Fact]
+    public async Task Autonomous_lifecycle_does_not_create_position_without_confirmed_fill()
+    {
+        var coordinator = new FakeCoordinator(new(new(RiskDecision.RiskBlocked, "blocked"), null, "no-trade"));
+        var repository = new FakeRepository();
+        var service = new DurableAutonomousPaperShortLifecycleService(coordinator, new DurablePaperShortCoverService(repository));
+
+        var result = await service.ExecuteAsync(Guid.NewGuid(), Guid.NewGuid(), new Symbol("TEST", "123"), null!, null!, 1, CancellationToken.None);
+
+        Assert.Null(result.Position);
+        Assert.Equal("no-trade", result.Execution.Status);
+        Assert.Equal(0, repository.AddCount);
+    }
+
+    private sealed class FakeCoordinator(PaperShortExecutionResult result) : IAutonomousPaperShortExecutionCoordinator
+    {
+        public Task<PaperShortExecutionResult> ExecuteAsync(Guid sessionId, Symbol symbol, Recommendation recommendation, MarketQuote quote, int quantity, CancellationToken cancellationToken)
+            => Task.FromResult(result);
+    }
+
     private sealed class FakeRepository : IDurableShortPositionRepository
     {
         private DurableShortPositionState? position;
