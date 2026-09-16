@@ -1,5 +1,5 @@
 using AiTrading.Domain;
-using FluentAssertions;
+using Xunit;
 
 namespace AiTrading.Domain.Tests;
 
@@ -9,32 +9,24 @@ public sealed class PortfolioRiskMonitoringTests
     public void Evaluate_ShouldRaiseConcentrationAndGrossExposureEvents()
     {
         var symbol = new Symbol("ABC");
-        var portfolio = new Portfolio(
-            100m,
-            [new Position(Guid.NewGuid(), symbol, 3, 20m, null)],
-            0m,
-            0m);
+        var portfolio = new Portfolio(100m, [new Position(Guid.NewGuid(), symbol, 3, 20m, null)], 0m, 0m);
 
         var events = PortfolioRiskMonitor.Evaluate(portfolio, 100m, new Dictionary<Symbol, decimal> { [symbol] = 40m });
 
-        events.Should().ContainSingle(x => x.Rule == PortfolioRiskRule.PositionConcentration);
-        events.Should().ContainSingle(x => x.Rule == PortfolioRiskRule.GrossExposure);
-        events.Should().OnlyContain(x => x.Severity == AlertSeverity.Warning);
+        Assert.Contains(events, x => x.Rule == PortfolioRiskRule.PositionConcentration);
+        Assert.Contains(events, x => x.Rule == PortfolioRiskRule.GrossExposure);
+        Assert.All(events, x => Assert.Equal(AlertSeverity.Warning, x.Severity));
     }
 
     [Fact]
     public void Evaluate_ShouldUseEntryPriceWhenMarketPriceIsMissing()
     {
         var symbol = new Symbol("ABC");
-        var portfolio = new Portfolio(
-            100m,
-            [new Position(Guid.NewGuid(), symbol, 2, 10m, null)],
-            0m,
-            0m);
+        var portfolio = new Portfolio(100m, [new Position(Guid.NewGuid(), symbol, 2, 10m, null)], 0m, 0m);
 
         var events = PortfolioRiskMonitor.Evaluate(portfolio, 100m);
 
-        events.Should().BeEmpty();
+        Assert.Empty(events);
     }
 
     [Fact]
@@ -44,8 +36,8 @@ public sealed class PortfolioRiskMonitoringTests
 
         var events = PortfolioRiskMonitor.Evaluate(portfolio, 100m);
 
-        events.Should().ContainSingle(x => x.Rule == PortfolioRiskRule.Drawdown)
-            .Which.ObservedValue.Should().Be(0.30m);
+        var drawdown = Assert.Single(events, x => x.Rule == PortfolioRiskRule.Drawdown);
+        Assert.Equal(0.30m, drawdown.ObservedValue);
     }
 
     [Fact]
@@ -55,7 +47,7 @@ public sealed class PortfolioRiskMonitoringTests
 
         var events = PortfolioRiskMonitor.Evaluate(portfolio, 0m);
 
-        events.Should().BeEmpty();
+        Assert.Empty(events);
     }
 
     [Theory]
@@ -70,6 +62,6 @@ public sealed class PortfolioRiskMonitoringTests
 
         var action = () => PortfolioRiskMonitor.Evaluate(portfolio, 100m, thresholds: thresholds);
 
-        action.Should().Throw<ArgumentOutOfRangeException>();
+        Assert.Throws<ArgumentOutOfRangeException>(action);
     }
 }
