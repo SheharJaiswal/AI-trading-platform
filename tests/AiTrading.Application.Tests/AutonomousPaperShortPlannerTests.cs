@@ -16,6 +16,26 @@ public sealed class AutonomousPaperShortPlannerTests
     }
 
     [Fact]
+    public void Plan_RejectsHoldRecommendation()
+    {
+        var recommendation = new Recommendation(new Symbol("DEMO"), RecommendationAction.Hold, 100m, null, .4m, 1, [], [], DateTimeOffset.UtcNow, "baseline-v1");
+
+        var result = AutonomousPaperShortPlanner.Plan(Guid.NewGuid(), new Symbol("DEMO"), recommendation, 1, 100m, 99m, 105m, 95m);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Plan_RejectsNoDecisionRecommendation()
+    {
+        var recommendation = new Recommendation(new Symbol("DEMO"), RecommendationAction.NoDecision, 100m, null, 0m, 1, [], ["INSUFFICIENT_DATA"], DateTimeOffset.UtcNow, "baseline-v1");
+
+        var result = AutonomousPaperShortPlanner.Plan(Guid.NewGuid(), new Symbol("DEMO"), recommendation, 1, 100m, 99m, 105m, 95m);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public void Plan_RejectsInvalidShortRiskWithoutCreatingExecutionIdentity()
     {
         var recommendation = new Recommendation(new Symbol("DEMO"), RecommendationAction.Sell, 100m, null, .6m, 1, ["PRICE_BELOW_SMA20"], [], DateTimeOffset.UtcNow, "baseline-v1");
