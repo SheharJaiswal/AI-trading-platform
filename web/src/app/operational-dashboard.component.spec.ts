@@ -41,6 +41,24 @@ describe('OperationalDashboardComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Monitoring history requires durable MySQL persistence.');
   });
 
+  it('renders the durable portfolio cash and P&L snapshot', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    fixture.detectChanges();
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: true });
+    http.expectOne('/api/portfolio').flush({ cash: 12345.67, positions: [{ id: 'position-1', symbol: 'INFY', quantity: 2, averageEntryPrice: 1500, stopLoss: 1400 }], unrealizedPnl: 234.56, realizedPnl: -45.67 });
+    http.expectOne('/api/alerts').flush([]);
+    http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
+    http.expectOne('/api/monitoring/runs?limit=20').flush([]);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Cash');
+    expect(text).toContain('12,345.67');
+    expect(text).toContain('Unrealized P&L');
+    expect(text).toContain('234.56');
+    expect(text).toContain('Realized P&L');
+    expect(text).toContain('-45.67');
+  });
+
   it('renders recent durable monitoring runs', () => {
     const fixture = TestBed.createComponent(OperationalDashboardComponent);
     fixture.detectChanges();
