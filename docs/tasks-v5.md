@@ -36,4 +36,4 @@
 - [x] BA acceptance
 - [x] Senior Engineer acceptance
 - [x] Trader/Safety acceptance
-- [ ] Merge V5 to main
+- [x] Merge V5 to main
