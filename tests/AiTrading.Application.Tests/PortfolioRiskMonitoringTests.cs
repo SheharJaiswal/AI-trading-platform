@@ -16,6 +16,24 @@ public sealed class PortfolioRiskMonitoringTests
     }
 
     [Fact]
+    public void Flags_gross_exposure_when_explicitly_configured()
+    {
+        var symbol = new Symbol("AAA");
+        var portfolio = new Portfolio(100m, [new Position(Guid.NewGuid(), symbol, 6, 20m, null)], 0m, 0m);
+        var events = new PortfolioRiskMonitor(new(MaxGrossExposureRatio: 0.50m)).Evaluate(portfolio, new Dictionary<Symbol, decimal> { [symbol] = 20m }, 1000m);
+        Assert.Contains(events, x => x.Type == "GROSS_EXPOSURE");
+    }
+
+    [Fact]
+    public void Falls_back_to_average_entry_price_when_market_price_is_missing()
+    {
+        var symbol = new Symbol("AAA");
+        var portfolio = new Portfolio(100m, [new Position(Guid.NewGuid(), symbol, 2, 20m, null)], 0m, 0m);
+        var events = new PortfolioRiskMonitor(new(MaxPositionWeight: 0.15m)).Evaluate(portfolio, new Dictionary<Symbol, decimal>(), 1000m);
+        Assert.Contains(events, x => x.Type == "POSITION_CONCENTRATION");
+    }
+
+    [Fact]
     public void Flags_drawdown_when_explicitly_configured()
     {
         var portfolio = new Portfolio(700m, [], 0m, 0m);
