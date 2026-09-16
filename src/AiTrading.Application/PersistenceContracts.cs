@@ -2,7 +2,7 @@ using AiTrading.Domain;
 
 namespace AiTrading.Application;
 
-public sealed record PortfolioState(Guid Id, decimal Cash, decimal RealizedPnl, DateTimeOffset UpdatedAt, long Version);
+public sealed record PortfolioState(Guid Id, decimal Cash, decimal RealizedPnl, DateTimeOffset UpdatedAt, long Version, decimal PeakEquity = 0m);
 public sealed record PositionState(Guid Id, Guid PortfolioId, Symbol Symbol, string? InstrumentToken, int Quantity, decimal AverageEntryPrice, decimal CurrentMarketPrice, decimal? StopLoss, DateTimeOffset OpenedAt, DateTimeOffset UpdatedAt);
 public sealed record OrderState(Guid Id, string IdempotencyKey, Symbol Symbol, string? InstrumentToken, OrderSide Side, int Quantity, decimal LimitPrice, string StrategyVersion, DateTimeOffset CreatedAt, string ExecutionMode, string Status);
 public sealed record FillState(Guid Id, Guid OrderId, Symbol Symbol, OrderSide Side, int Quantity, decimal FillPrice, DateTimeOffset FilledAt, string ExecutionProvider);
