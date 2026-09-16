@@ -100,4 +100,18 @@ describe('OperationalDashboardComponent', () => {
     flushDashboard(fixture, 'disabled', '');
     expect(fixture.nativeElement.textContent).toContain('UNKNOWN');
   });
+
+  it('clears the previous refresh timestamp when a new refresh starts', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    const previousRefresh = new Date('2026-09-16T10:00:00Z');
+    fixture.componentInstance.loadedAt = previousRefresh;
+
+    fixture.componentInstance.load();
+
+    expect(fixture.componentInstance.loadedAt).toBeUndefined();
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: false });
+    http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
+    http.expectOne('/api/alerts').flush([]);
+    http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
+  });
 });
