@@ -84,7 +84,19 @@ public sealed class DurableRiskMonitor(
             return (price - position.AverageEntryPrice) * position.Quantity;
         });
         var portfolio = new Portfolio(portfolioState.Cash, domainPositions, unrealizedPnl, portfolioState.RealizedPnl);
-        var riskEvents = _portfolioRiskMonitor.Evaluate(portfolio, prices, 0m);
+        var currentEquity = portfolioState.Cash + domainPositions.Sum(position =>
+        {
+            var price = prices.GetValueOrDefault(position.Symbol, position.AverageEntryPrice);
+            return position.Quantity * price;
+        });
+        var peakEquity = Math.Max(portfolioState.PeakEquity, currentEquity);
+        if (peakEquity != portfolioState.PeakEquity)
+        {
+            await unitOfWork.Portfolios.SaveAsync(portfolioState with { PeakEquity = peakEquity, UpdatedAt = DateTimeOffset.UtcNow }, portfolioState.Version, cancellationToken);
+            changed = true;
+        }
+
+        var riskEvents = _portfolioRiskMonitor.Evaluate(portfolio, prices, peakEquity);
         var riskBucket = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
         foreach (var riskEvent in riskEvents)
         {

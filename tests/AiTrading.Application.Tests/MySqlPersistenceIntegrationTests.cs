@@ -150,6 +150,45 @@ public sealed class MySqlPersistenceIntegrationTests
         Assert.Equal(92m, snapshot.LastTradedPrice);
         Assert.Equal("NSE", snapshot.Exchange);
         Assert.Equal(10_000, snapshot.Volume);
+        var portfolio = await verify.Portfolios.AsNoTracking().SingleAsync(x => x.Id == portfolioId);
+        Assert.Equal(100_920m, portfolio.PeakEquity);
+    }
+
+    [Fact]
+    public async Task Durable_Risk_Monitor_Uses_Persisted_Peak_Across_Restarts_For_Drawdown()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var portfolioId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        db.Portfolios.Add(new PortfolioRecord
+        {
+            Id = portfolioId,
+            Cash = 80_000m,
+            RealizedPnl = 0m,
+            PeakEquity = 100_000m,
+            UpdatedAt = now,
+            Version = 1
+        });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        var monitor = new DurableRiskMonitor(
+            new FakeMarketDataProvider(new MarketQuote(new Symbol("TCS"), "NSE", null, now, 100m, 100m, 100m, 100m, 100m, 0, "integration")),
+            new TestUnitOfWorkFactory(options),
+            portfolioId,
+            new NoopAlertDelivery(),
+            new PortfolioRiskMonitor(new PortfolioRiskMonitoringOptions(MaxDrawdownPercent: 10m)));
+
+        await monitor.CheckOnceAsync(CancellationToken.None);
+
+        await using var verify = new TradingDbContext(options);
+        var portfolio = await verify.Portfolios.AsNoTracking().SingleAsync(x => x.Id == portfolioId);
+        Assert.Equal(100_000m, portfolio.PeakEquity);
+        var alerts = await verify.Alerts.AsNoTracking().Where(x => x.Rule == "PORTFOLIO_DRAWDOWN").ToListAsync();
+        Assert.Single(alerts);
+        Assert.Contains("20.00%", alerts[0].Message);
     }
 
     private static async Task<TradingDbContext> CreateMigratedContextAsync()

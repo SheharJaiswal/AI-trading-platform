@@ -32,7 +32,8 @@ public sealed class DurablePaperTradingService(
         var portfolio = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
         if (portfolio is null)
         {
-            portfolio = new PortfolioState(portfolioId, startingCash, 0m, DateTimeOffset.UtcNow, 0);
+            var now = DateTimeOffset.UtcNow;
+            portfolio = new PortfolioState(portfolioId, startingCash, 0m, now, 0, startingCash);
             await unitOfWork.Portfolios.SaveAsync(portfolio, 0, cancellationToken);
         }
 
@@ -42,7 +43,7 @@ public sealed class DurablePaperTradingService(
 
         var order = new PaperOrder(orderId, symbol, OrderSide.Buy, quantity, recommendation.ReferencePrice, DateTimeOffset.UtcNow);
         var fill = await execution.ExecuteAsync(order, cancellationToken);
-        var now = DateTimeOffset.UtcNow;
+        var nowFilled = DateTimeOffset.UtcNow;
         var orderState = new OrderState(order.Id, idempotencyKey, order.Symbol, order.Symbol.InstrumentToken, order.Side, order.Quantity, order.LimitPrice, recommendation.StrategyVersion, order.CreatedAt, "paper", "filled");
         var fillState = new FillState(order.Id, fill.OrderId, fill.Symbol, fill.Side, fill.Quantity, fill.Price, fill.Timestamp, "paper");
         await unitOfWork.Orders.AddAsync(orderState, cancellationToken);
@@ -53,14 +54,14 @@ public sealed class DurablePaperTradingService(
         var value = fill.Price * fill.Quantity;
         if (value > portfolio.Cash) throw new InvalidOperationException("Insufficient virtual cash at persistence boundary.");
         if (existingPosition is null)
-            await unitOfWork.Portfolios.SavePositionAsync(new PositionState(Guid.NewGuid(), portfolioId, symbol, symbol.InstrumentToken, fill.Quantity, fill.Price, fill.Price, null, now, now), cancellationToken);
+            await unitOfWork.Portfolios.SavePositionAsync(new PositionState(Guid.NewGuid(), portfolioId, symbol, symbol.InstrumentToken, fill.Quantity, fill.Price, fill.Price, null, nowFilled, nowFilled), cancellationToken);
         else
         {
             var totalQuantity = existingPosition.Quantity + fill.Quantity;
             var averageEntry = ((existingPosition.AverageEntryPrice * existingPosition.Quantity) + value) / totalQuantity;
-            await unitOfWork.Portfolios.SavePositionAsync(existingPosition with { Quantity = totalQuantity, AverageEntryPrice = averageEntry, CurrentMarketPrice = fill.Price, UpdatedAt = now }, cancellationToken);
+            await unitOfWork.Portfolios.SavePositionAsync(existingPosition with { Quantity = totalQuantity, AverageEntryPrice = averageEntry, CurrentMarketPrice = fill.Price, UpdatedAt = nowFilled }, cancellationToken);
         }
-        await unitOfWork.Portfolios.SaveAsync(portfolio with { Cash = portfolio.Cash - value, UpdatedAt = now }, portfolio.Version, cancellationToken);
+        await unitOfWork.Portfolios.SaveAsync(portfolio with { Cash = portfolio.Cash - value, UpdatedAt = nowFilled }, portfolio.Version, cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
         return (riskResult, fillState);
     }

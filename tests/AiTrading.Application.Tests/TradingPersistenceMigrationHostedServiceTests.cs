@@ -32,5 +32,6 @@ public sealed class TradingPersistenceMigrationHostedServiceTests
                 typeof(DurableRiskMonitoringHostedService)
             ],
             hostedServices);
+        Assert.Contains(services, d => d.ServiceType == typeof(AiTrading.Application.PortfolioRiskMonitor));
     }
 }
