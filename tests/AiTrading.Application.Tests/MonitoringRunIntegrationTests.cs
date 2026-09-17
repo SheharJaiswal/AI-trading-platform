@@ -50,6 +50,43 @@ public sealed class MonitoringRunIntegrationTests
     }
 
     [Fact]
+    public async Task MonitoringRunService_Returns_Persisted_Run_By_Id()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var completedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = completedAt,
+            Status = MonitoringRunStatus.PartiallyFailed.ToString(),
+            PositionCount = 4,
+            FailureCount = 1
+        });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        var runService = new MonitoringRunService(
+            new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(options), Guid.NewGuid(), new NoopAlertDelivery()),
+            new EfMonitoringRunRepository(new TestDbContextFactory(options)),
+            TimeProvider.System);
+
+        var result = await runService.GetRunAsync(runId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(runId, result.Id);
+        Assert.Equal(MonitoringRunStatus.PartiallyFailed, result.Status);
+        Assert.Equal(4, result.PositionCount);
+        Assert.Equal(1, result.FailureCount);
+        Assert.True(Math.Abs((result.StartedAt - startedAt).TotalMilliseconds) < 1);
+        Assert.True(Math.Abs((result.CompletedAt!.Value - completedAt).TotalMilliseconds) < 1);
+    }
+
+    [Fact]
     public async Task MonitoringRunService_RecoversOnlyStaleRunningRuns_AndIsIdempotent()
     {
         await using var db = await CreateMigratedContextAsync();
@@ -109,8 +146,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = oldestId,
-                StartedAt = now.AddMinutes(-10),
-                CompletedAt = now.AddMinutes(-9),
+                StartedAt = now.AddHours(1),
+                CompletedAt = now.AddHours(1).AddMinutes(1),
                 Status = MonitoringRunStatus.Completed.ToString(),
                 PositionCount = 2,
                 FailureCount = 0
@@ -118,8 +155,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = newestId,
-                StartedAt = now.AddMinutes(-1),
-                CompletedAt = now,
+                StartedAt = now.AddHours(2),
+                CompletedAt = now.AddHours(2).AddMinutes(1),
                 Status = MonitoringRunStatus.PartiallyFailed.ToString(),
                 PositionCount = 4,
                 FailureCount = 1
@@ -155,8 +192,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = olderId,
-                StartedAt = now.AddMinutes(-2),
-                CompletedAt = now.AddMinutes(-1),
+                StartedAt = now.AddHours(3),
+                CompletedAt = now.AddHours(3).AddMinutes(1),
                 Status = MonitoringRunStatus.Completed.ToString(),
                 PositionCount = 1,
                 FailureCount = 0
@@ -164,8 +201,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = newerId,
-                StartedAt = now,
-                CompletedAt = now,
+                StartedAt = now.AddHours(4),
+                CompletedAt = now.AddHours(4).AddMinutes(1),
                 Status = MonitoringRunStatus.Failed.ToString(),
                 PositionCount = 1,
                 FailureCount = 1
