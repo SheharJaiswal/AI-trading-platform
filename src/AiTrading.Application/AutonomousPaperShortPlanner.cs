@@ -32,6 +32,9 @@ public static class AutonomousPaperShortPlanner
         decimal targetPrice,
         string cycleKey)
     {
+        if (recommendation.Action != RecommendationAction.Sell)
+            return null;
+
         if (string.IsNullOrWhiteSpace(cycleKey) || cycleKey.Length > 64)
             throw new ArgumentException("Cycle key is required and must be 1-64 characters.", nameof(cycleKey));
 
