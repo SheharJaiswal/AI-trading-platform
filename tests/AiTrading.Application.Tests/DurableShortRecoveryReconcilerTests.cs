@@ -11,7 +11,7 @@ public sealed class DurableShortRecoveryReconcilerTests
         var positionId = Guid.NewGuid();
         var created = DateTimeOffset.UtcNow;
         var covers = new[] { new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 92m, 5, 40m, 1, created.AddMinutes(1)) };
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, 92m, null, 40m, "SHORT_CLOSED", created, created.AddMinutes(1), 1);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, null, null, 92m, 40m, "SHORT_CLOSED", created, created.AddMinutes(1), 1);
         var result = DurableShortRecoveryReconciler.Reconcile(position, covers);
         Assert.True(result.IsConsistent);
         Assert.Equal("CONSISTENT", result.Reason);
@@ -22,7 +22,7 @@ public sealed class DurableShortRecoveryReconcilerTests
     {
         var positionId = Guid.NewGuid();
         var created = DateTimeOffset.UtcNow;
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 5, 100m, null, null, 0m, "SHORT_OPEN", created, created, 0);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 5, 100m, null, null, null, 0m, "SHORT_OPEN", created, created, 0);
         var result = DurableShortRecoveryReconciler.Reconcile(position, []);
         Assert.True(result.IsConsistent);
         Assert.Equal("CONSISTENT", result.Reason);
@@ -34,7 +34,7 @@ public sealed class DurableShortRecoveryReconcilerTests
         var positionId = Guid.NewGuid();
         var created = DateTimeOffset.UtcNow;
         var covers = new[] { new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 96m, 4, 16m, 1, created.AddMinutes(1)) };
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 10, 6, 100m, 96m, null, 16m, "SHORT_PARTIALLY_COVERED", created, created.AddMinutes(1), 1);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 10, 6, 100m, null, null, 96m, 16m, "SHORT_PARTIALLY_COVERED", created, created.AddMinutes(1), 1);
         Assert.True(DurableShortRecoveryReconciler.Reconcile(position, covers).IsConsistent);
     }
 
@@ -48,7 +48,7 @@ public sealed class DurableShortRecoveryReconcilerTests
             new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 95m, 1, 5m, 1, created.AddMinutes(1)),
             new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-2", 94m, 1, 6m, 3, created.AddMinutes(2))
         };
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 2, 0, 100m, 94m, null, 11m, "SHORT_CLOSED", created, created.AddMinutes(2), 2);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 2, 0, 100m, null, null, 94m, 11m, "SHORT_CLOSED", created, created.AddMinutes(2), 2);
         var result = DurableShortRecoveryReconciler.Reconcile(position, covers);
         Assert.False(result.IsConsistent);
         Assert.Equal("COVER_VERSION_MISMATCH", result.Reason);
@@ -64,7 +64,7 @@ public sealed class DurableShortRecoveryReconcilerTests
             new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 95m, 1, 5m, 1, created.AddMinutes(1)),
             new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 94m, 1, 6m, 2, created.AddMinutes(2))
         };
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 2, 0, 100m, 94m, null, 11m, "SHORT_CLOSED", created, created.AddMinutes(2), 2);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 2, 0, 100m, null, null, 94m, 11m, "SHORT_CLOSED", created, created.AddMinutes(2), 2);
         var result = DurableShortRecoveryReconciler.Reconcile(position, covers);
         Assert.False(result.IsConsistent);
         Assert.Equal("DUPLICATE_IDEMPOTENCY_KEY", result.Reason);
@@ -76,7 +76,7 @@ public sealed class DurableShortRecoveryReconcilerTests
         var positionId = Guid.NewGuid();
         var created = DateTimeOffset.UtcNow;
         var covers = new[] { new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 92m, 5, 40m, 1, created.AddMinutes(1)) };
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, 92m, null, 40m, "OPEN", created, created.AddMinutes(1), 2);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, null, null, 92m, 40m, "OPEN", created, created.AddMinutes(1), 2);
         var result = DurableShortRecoveryReconciler.Reconcile(position, covers);
         Assert.False(result.IsConsistent);
         Assert.Equal("VERSION_MISMATCH", result.Reason);
@@ -88,7 +88,7 @@ public sealed class DurableShortRecoveryReconcilerTests
         var positionId = Guid.NewGuid();
         var created = DateTimeOffset.UtcNow;
         var covers = new[] { new DurableShortCoverState(Guid.NewGuid(), positionId, "cover-1", 92m, 5, 41m, 1, created.AddMinutes(1)) };
-        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, 92m, null, 41m, "SHORT_CLOSED", created, created.AddMinutes(1), 1);
+        var position = new DurableShortPositionState(positionId, Guid.NewGuid(), new Symbol("TEST"), 5, 0, 100m, null, null, 92m, 41m, "SHORT_CLOSED", created, created.AddMinutes(1), 1);
         var result = DurableShortRecoveryReconciler.Reconcile(position, covers);
         Assert.False(result.IsConsistent);
         Assert.Equal("INVALID_COVER", result.Reason);
