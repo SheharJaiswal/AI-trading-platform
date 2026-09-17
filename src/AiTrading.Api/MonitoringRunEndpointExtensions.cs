@@ -29,6 +29,9 @@ public static class MonitoringRunEndpointExtensions
 
         app.MapGet("/api/monitoring/runs/{id:guid}", async (Guid id, IServiceProvider services, CancellationToken cancellationToken) =>
         {
+            if (id == Guid.Empty)
+                return Results.BadRequest(new { errorCode = "INVALID_MONITORING_RUN_ID", message = "Monitoring-run id must not be empty." });
+
             if (!persistenceEnabled)
                 return Results.Json(new { errorCode = "PERSISTENCE_DISABLED", message = "Monitoring-run detail requires MySQL persistence." }, statusCode: 503);
 
