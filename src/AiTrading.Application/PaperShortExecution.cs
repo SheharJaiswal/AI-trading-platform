@@ -15,7 +15,9 @@ public sealed record PaperShortExecutionRequest(
 public sealed record PaperShortExecutionResult(
     RiskResult Risk,
     FillState? Fill,
-    string Status);
+    string Status,
+    decimal? StopLoss = null,
+    decimal? TargetPrice = null);
 
 /// <summary>
 /// Paper-only short execution boundary. It persists the SELL order/fill ledger and
@@ -41,7 +43,7 @@ public sealed class DurablePaperShortExecutionService(
             var existingFill = await unitOfWork.Orders.GetFillByOrderIdAsync(request.OrderId, cancellationToken);
             if (existingFill is null)
                 throw new InvalidOperationException($"Order {request.OrderId} exists without a fill; execution state requires reconciliation.");
-            return new(new(RiskDecision.Approved, null), existingFill, "already-executed");
+            return new(new(RiskDecision.Approved, null), existingFill, "already-executed", request.StopLoss, request.TargetPrice);
         }
 
         var order = new PaperOrder(
@@ -77,7 +79,7 @@ public sealed class DurablePaperShortExecutionService(
         await unitOfWork.Orders.AddAsync(orderState, cancellationToken);
         await unitOfWork.Orders.AddFillAsync(fillState, cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
-        return new(new(RiskDecision.Approved, null), fillState, "executed");
+        return new(new(RiskDecision.Approved, null), fillState, "executed", request.StopLoss, request.TargetPrice);
     }
 
     private static void Validate(PaperShortExecutionRequest request)
