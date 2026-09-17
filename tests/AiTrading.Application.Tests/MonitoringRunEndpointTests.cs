@@ -33,7 +33,7 @@ public sealed class MonitoringRunEndpointTests
     public async Task DetailEndpoint_Returns_BadRequest_For_Empty_Id()
     {
         await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "true"));
+            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "false"));
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync($"/api/monitoring/runs/{Guid.Empty}");
