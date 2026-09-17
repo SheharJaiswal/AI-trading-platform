@@ -52,6 +52,43 @@ public sealed class DurablePaperShortCoverServiceTests
     }
 
     [Fact]
+    public async Task Open_persists_short_stop_and_target_levels()
+    {
+        var repository = new FakeRepository();
+        var service = new DurablePaperShortCoverService(repository);
+
+        var opened = await service.OpenAsync(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new Symbol("TEST"),
+            3,
+            100m,
+            DateTimeOffset.UtcNow,
+            105m,
+            95m,
+            CancellationToken.None);
+
+        Assert.Equal(105m, opened.StopLoss);
+        Assert.Equal(95m, opened.TargetPrice);
+    }
+
+    [Fact]
+    public async Task Open_replay_rejects_changed_short_risk_levels()
+    {
+        var repository = new FakeRepository();
+        var service = new DurablePaperShortCoverService(repository);
+        var positionId = Guid.NewGuid();
+        var portfolioId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        var first = await service.OpenAsync(positionId, portfolioId, new Symbol("TEST"), 3, 100m, now, 105m, 95m, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.OpenAsync(
+            positionId, first.PortfolioId, first.Symbol, first.OriginalQuantity, first.AverageEntryPrice,
+            now.AddSeconds(1), 106m, 95m, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Invalid_cover_values_are_rejected_before_repository_call()
     {
         var repository = new FakeRepository();
@@ -70,7 +107,7 @@ public sealed class DurablePaperShortCoverServiceTests
         var orderId = Guid.NewGuid();
         var symbol = new Symbol("TEST", "123");
         var fill = new FillState(orderId, orderId, symbol, OrderSide.Sell, 5, 100m, DateTimeOffset.UtcNow, "paper");
-        var coordinator = new FakeCoordinator(new(new(RiskDecision.Approved, null), fill, "executed"));
+        var coordinator = new FakeCoordinator(new(new(RiskDecision.Approved, null), fill, "executed", 105m, 95m));
         var repository = new FakeRepository();
         var service = new DurableAutonomousPaperShortLifecycleService(coordinator, new DurablePaperShortCoverService(repository));
         var portfolioId = Guid.NewGuid();
@@ -82,6 +119,8 @@ public sealed class DurablePaperShortCoverServiceTests
         Assert.Equal(portfolioId, result.Position.PortfolioId);
         Assert.Equal(5, result.Position.RemainingQuantity);
         Assert.Equal(100m, result.Position.AverageEntryPrice);
+        Assert.Equal(105m, result.Position.StopLoss);
+        Assert.Equal(95m, result.Position.TargetPrice);
         Assert.Equal("executed-and-positioned", result.Execution.Status);
         Assert.Equal(1, repository.AddCount);
     }
@@ -92,7 +131,7 @@ public sealed class DurablePaperShortCoverServiceTests
         var orderId = Guid.NewGuid();
         var symbol = new Symbol("TEST", "123");
         var fill = new FillState(orderId, orderId, symbol, OrderSide.Sell, 3, 100m, DateTimeOffset.UtcNow, "paper");
-        var coordinator = new FakeCoordinator(new(new(RiskDecision.Approved, null), fill, "already-executed"));
+        var coordinator = new FakeCoordinator(new(new(RiskDecision.Approved, null), fill, "already-executed", 105m, 95m));
         var repository = new FakeRepository();
         var service = new DurableAutonomousPaperShortLifecycleService(coordinator, new DurablePaperShortCoverService(repository));
         var portfolioId = Guid.NewGuid();
