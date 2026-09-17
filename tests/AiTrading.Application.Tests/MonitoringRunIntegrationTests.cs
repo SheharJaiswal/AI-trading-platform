@@ -192,8 +192,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = olderId,
-                StartedAt = now.AddMinutes(-2),
-                CompletedAt = now.AddMinutes(-1),
+                StartedAt = now.AddHours(3),
+                CompletedAt = now.AddHours(3).AddMinutes(1),
                 Status = MonitoringRunStatus.Completed.ToString(),
                 PositionCount = 1,
                 FailureCount = 0
@@ -201,8 +201,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = newerId,
-                StartedAt = now,
-                CompletedAt = now,
+                StartedAt = now.AddHours(4),
+                CompletedAt = now.AddHours(4).AddMinutes(1),
                 Status = MonitoringRunStatus.Failed.ToString(),
                 PositionCount = 1,
                 FailureCount = 1
