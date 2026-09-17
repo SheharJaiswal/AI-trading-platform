@@ -16,13 +16,17 @@ public sealed class DurablePaperShortCoverService(IDurableShortPositionRepositor
         if (portfolioId == Guid.Empty) throw new ArgumentException("PortfolioId is required.", nameof(portfolioId));
         if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be positive.");
         if (entryPrice <= 0) throw new ArgumentOutOfRangeException(nameof(entryPrice), "Entry price must be positive.");
-        if (stopLoss is not null && targetPrice is not null && !PaperShortRiskGate.Validate(quantity, entryPrice, stopLoss.Value, targetPrice.Value).Approved)
+        if ((stopLoss is null) != (targetPrice is null)) throw new ArgumentException("Short stop-loss and target must be supplied together.", nameof(stopLoss));
+        if (stopLoss is not null && !PaperShortRiskGate.Validate(quantity, entryPrice, stopLoss.Value, targetPrice!.Value).Approved)
             throw new ArgumentException("Configured short risk levels are invalid.", nameof(stopLoss));
 
         var existing = await repository.GetAsync(positionId, ct);
         if (existing is not null)
         {
-            if (existing.PortfolioId != portfolioId || existing.Symbol != symbol || existing.OriginalQuantity != quantity || existing.AverageEntryPrice != entryPrice || existing.StopLoss != stopLoss || existing.TargetPrice != targetPrice)
+            var riskLevelsMatch = existing.StopLoss is null && existing.TargetPrice is null
+                ? true
+                : existing.StopLoss == stopLoss && existing.TargetPrice == targetPrice;
+            if (existing.PortfolioId != portfolioId || existing.Symbol != symbol || existing.OriginalQuantity != quantity || existing.AverageEntryPrice != entryPrice || !riskLevelsMatch)
                 throw new InvalidOperationException("Position id is already associated with different short-position details.");
             return existing;
         }
