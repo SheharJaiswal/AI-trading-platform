@@ -186,13 +186,32 @@ public sealed class MonitoringRunIntegrationTests
     {
         await using var db = await CreateMigratedContextAsync();
         var startedAt = DateTimeOffset.UtcNow.AddHours(1);
-        var lowerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var higherId = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO monitoring_runs (Id, StartedAt, CompletedAt, Status, PositionCount, FailureCount)
-            VALUES ({lowerId}, {startedAt}, {startedAt.AddMinutes(1)}, {MonitoringRunStatus.Completed.ToString()}, 1, 0),
-                   ({higherId}, {startedAt}, {startedAt.AddMinutes(1)}, {MonitoringRunStatus.Failed.ToString()}, 1, 1)
-            """);
+        db.Set<MonitoringRunRecord>().AddRange(
+            new MonitoringRunRecord
+            {
+                StartedAt = startedAt,
+                CompletedAt = startedAt.AddMinutes(1),
+                Status = MonitoringRunStatus.Completed.ToString(),
+                PositionCount = 1,
+                FailureCount = 0
+            },
+            new MonitoringRunRecord
+            {
+                StartedAt = startedAt,
+                CompletedAt = startedAt.AddMinutes(1),
+                Status = MonitoringRunStatus.Failed.ToString(),
+                PositionCount = 1,
+                FailureCount = 1
+            });
+        await db.SaveChangesAsync();
+
+        var insertedIds = await db.Set<MonitoringRunRecord>()
+            .AsNoTracking()
+            .Where(x => x.StartedAt == startedAt)
+            .OrderBy(x => x.Id)
+            .Select(x => x.Id)
+            .ToListAsync();
+        Assert.Equal(2, insertedIds.Count);
 
         var options = new DbContextOptionsBuilder<TradingDbContext>()
             .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
@@ -205,8 +224,8 @@ public sealed class MonitoringRunIntegrationTests
         var runs = await runService.GetRecentRunsAsync(2, CancellationToken.None);
 
         Assert.Equal(2, runs.Count);
-        Assert.Equal(higherId, runs[0].Id);
-        Assert.Equal(lowerId, runs[1].Id);
+        Assert.Equal(insertedIds[1], runs[0].Id);
+        Assert.Equal(insertedIds[0], runs[1].Id);
     }
 
     [Fact]
