@@ -66,6 +66,10 @@ When MySQL persistence is enabled, the API starts a restart-safe background risk
 
 Configure the cadence with `Monitoring:RiskIntervalSeconds`; the Docker Compose default is 60 seconds.
 
+### Monitoring run history
+
+When MySQL persistence is enabled, `GET /api/monitoring/runs` returns recent durable monitoring-run outcomes. `GET /api/monitoring/runs/{id}` returns one persisted run by identifier for read-only operational diagnostics. Missing runs return `MONITORING_RUN_NOT_FOUND`; neither endpoint mutates monitoring state or trading positions.
+
 ### Autonomous paper cycle
 
 A running paper session can execute one deterministic autonomous cycle through `POST /api/paper-sessions/{id}/run-cycle`. The cycle scans configured symbols, ranks recommendations deterministically, and only sends a BUY candidate through the existing paper execution and risk boundary. HOLD/NoDecision candidates do not create orders.
@@ -92,6 +96,8 @@ When MySQL persistence is enabled, `POST /api/paper-shorts/{positionId}/cover` r
 - `GET /api/market/{symbol}/quote?instrumentToken=...`
 - `GET /api/recommendations/{symbol}?instrumentToken=...`
 - `POST /api/paper-trades/{symbol}?instrumentToken=...&quantity=...`
+- `GET /api/monitoring/runs`
+- `GET /api/monitoring/runs/{id}`
 - `GET /api/paper-shorts/{positionId}/recovery`
 - `POST /api/paper-shorts/{positionId}/cover`
 - `POST /api/paper-sessions/{id}/run-cycle`
