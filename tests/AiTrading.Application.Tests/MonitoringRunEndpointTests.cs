@@ -77,7 +77,9 @@ public sealed class MonitoringRunEndpointTests
     public async Task DetailEndpoint_Returns_NotFound_For_Unknown_Id_With_Stable_Error_Code()
     {
         await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "true"));
+            .WithWebHostBuilder(builder => builder
+                .UseSetting("Persistence:MySql:Enabled", "true")
+                .UseSetting("ConnectionStrings:MySql", "Server=127.0.0.1;Port=3306;Database=ai_trading_test;User=root;Password=test;"));
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync($"/api/monitoring/runs/{Guid.NewGuid()}");
