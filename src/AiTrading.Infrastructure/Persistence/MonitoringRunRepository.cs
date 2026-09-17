@@ -62,6 +62,6 @@ public sealed class EfMonitoringRunRepository(IDbContextFactory<TradingDbContext
     {
         limit = Math.Clamp(limit, 1, 100);
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        return await db.Set<MonitoringRunRecord>().AsNoTracking().OrderByDescending(x => x.StartedAt).Take(limit).Select(x => new MonitoringRunState(x.Id, x.StartedAt, x.CompletedAt, Enum.Parse<MonitoringRunStatus>(x.Status), x.PositionCount, x.FailureCount)).ToListAsync(cancellationToken);
+        return await db.Set<MonitoringRunRecord>().AsNoTracking().OrderByDescending(x => x.StartedAt).ThenByDescending(x => x.Id).Take(limit).Select(x => new MonitoringRunState(x.Id, x.StartedAt, x.CompletedAt, Enum.Parse<MonitoringRunStatus>(x.Status), x.PositionCount, x.FailureCount)).ToListAsync(cancellationToken);
     }
 }
