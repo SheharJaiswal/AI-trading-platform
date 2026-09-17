@@ -18,6 +18,34 @@ public sealed class MonitoringRunEndpointTests
     }
 
     [Fact]
+    public async Task HistoryEndpoint_Returns_BadRequest_For_NonPositive_Limit()
+    {
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "false"));
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/monitoring/runs?limit=0");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("INVALID_LIMIT", body);
+    }
+
+    [Fact]
+    public async Task HistoryEndpoint_Returns_BadRequest_For_NonNumeric_Limit()
+    {
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "false"));
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/monitoring/runs?limit=abc");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("INVALID_LIMIT", body);
+    }
+
+    [Fact]
     public async Task DetailEndpoint_Returns_ServiceUnavailable_WhenPersistenceDisabled()
     {
         await using var factory = new WebApplicationFactory<Program>()
