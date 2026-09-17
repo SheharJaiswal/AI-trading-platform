@@ -57,19 +57,20 @@ public sealed class DurablePaperShortCoverServiceTests
         var repository = new FakeRepository();
         var service = new DurablePaperShortCoverService(repository);
 
-        var opened = await service.OpenAsync(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            new Symbol("TEST"),
-            3,
-            100m,
-            DateTimeOffset.UtcNow,
-            105m,
-            95m,
-            CancellationToken.None);
+        var opened = await service.OpenAsync(Guid.NewGuid(), Guid.NewGuid(), new Symbol("TEST"), 3, 100m, DateTimeOffset.UtcNow, 105m, 95m, CancellationToken.None);
 
         Assert.Equal(105m, opened.StopLoss);
         Assert.Equal(95m, opened.TargetPrice);
+    }
+
+    [Fact]
+    public async Task Open_rejects_partial_short_risk_levels()
+    {
+        var repository = new FakeRepository();
+        var service = new DurablePaperShortCoverService(repository);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.OpenAsync(Guid.NewGuid(), Guid.NewGuid(), new Symbol("TEST"), 3, 100m, DateTimeOffset.UtcNow, 105m, null, CancellationToken.None));
+        Assert.Equal(0, repository.AddCount);
     }
 
     [Fact]
@@ -83,9 +84,22 @@ public sealed class DurablePaperShortCoverServiceTests
 
         var first = await service.OpenAsync(positionId, portfolioId, new Symbol("TEST"), 3, 100m, now, 105m, 95m, CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.OpenAsync(
-            positionId, first.PortfolioId, first.Symbol, first.OriginalQuantity, first.AverageEntryPrice,
-            now.AddSeconds(1), 106m, 95m, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.OpenAsync(positionId, first.PortfolioId, first.Symbol, first.OriginalQuantity, first.AverageEntryPrice, now.AddSeconds(1), 106m, 95m, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Open_replay_keeps_legacy_position_without_risk_levels_unchanged()
+    {
+        var repository = new FakeRepository
+        {
+            SeedPosition = new DurableShortPositionState(Guid.NewGuid(), Guid.NewGuid(), new Symbol("TEST"), 3, 3, 100m, null, null, null, 0m, "SHORT_OPEN", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, 0)
+        };
+        var service = new DurablePaperShortCoverService(repository);
+
+        var replay = await service.OpenAsync(repository.SeedPosition.Id, repository.SeedPosition.PortfolioId, repository.SeedPosition.Symbol, 3, 100m, DateTimeOffset.UtcNow, 105m, 95m, CancellationToken.None);
+
+        Assert.Equal(repository.SeedPosition, replay);
+        Assert.Equal(0, repository.AddCount);
     }
 
     [Fact]
@@ -167,6 +181,7 @@ public sealed class DurablePaperShortCoverServiceTests
     private sealed class FakeRepository : IDurableShortPositionRepository
     {
         private DurableShortPositionState? position;
+        public DurableShortPositionState? SeedPosition { get => position; set => position = value; }
         public string? LastKey { get; private set; }
         public int AddCount { get; private set; }
         public Task<DurableShortPositionState?> GetAsync(Guid positionId, CancellationToken cancellationToken) => Task.FromResult(position?.Id == positionId ? position : null);
