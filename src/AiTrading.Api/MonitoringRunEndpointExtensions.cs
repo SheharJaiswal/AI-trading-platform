@@ -32,10 +32,17 @@ public static class MonitoringRunEndpointExtensions
             if (!persistenceEnabled)
                 return Results.Json(new { errorCode = "PERSISTENCE_DISABLED", message = "Monitoring-run detail requires MySQL persistence." }, statusCode: 503);
 
-            var run = await services.GetRequiredService<MonitoringRunService>().GetRunAsync(id, cancellationToken);
-            return run is null
-                ? Results.NotFound(new { errorCode = "MONITORING_RUN_NOT_FOUND", message = $"Monitoring run {id} does not exist." })
-                : Results.Ok(run);
+            try
+            {
+                var run = await services.GetRequiredService<MonitoringRunService>().GetRunAsync(id, cancellationToken);
+                return run is null
+                    ? Results.NotFound(new { errorCode = "MONITORING_RUN_NOT_FOUND", message = $"Monitoring run {id} does not exist." })
+                    : Results.Ok(run);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { errorCode = "INVALID_MONITORING_RUN_ID", message = ex.Message });
+            }
         });
 
         app.MapPost("/api/paper-shorts/{positionId:guid}/cover", async (Guid positionId, PaperShortCoverApiRequest request, HttpRequest httpRequest, IServiceProvider services, CancellationToken cancellationToken) =>
