@@ -182,6 +182,50 @@ public sealed class MonitoringRunIntegrationTests
     }
 
     [Fact]
+    public async Task MonitoringRunService_Uses_Id_As_TieBreaker_For_Equal_Start_Times()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var startedAt = DateTimeOffset.UtcNow.AddYears(500);
+        var idPrefix = Guid.NewGuid().ToString()[..24];
+        var lowerId = Guid.Parse($"{idPrefix}0000-0000-0000-000000000001");
+        var higherId = Guid.Parse($"{idPrefix}0000-0000-0000-000000000002");
+        db.Set<MonitoringRunRecord>().AddRange(
+            new MonitoringRunRecord
+            {
+                Id = lowerId,
+                StartedAt = startedAt,
+                CompletedAt = startedAt.AddMinutes(1),
+                Status = MonitoringRunStatus.Completed.ToString(),
+                PositionCount = 1,
+                FailureCount = 0
+            },
+            new MonitoringRunRecord
+            {
+                Id = higherId,
+                StartedAt = startedAt,
+                CompletedAt = startedAt.AddMinutes(1),
+                Status = MonitoringRunStatus.Failed.ToString(),
+                PositionCount = 1,
+                FailureCount = 1
+            });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        var runService = new MonitoringRunService(
+            new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(options), Guid.NewGuid(), new NoopAlertDelivery()),
+            new EfMonitoringRunRepository(new TestDbContextFactory(options)),
+            TimeProvider.System);
+
+        var runs = await runService.GetRecentRunsAsync(2, CancellationToken.None);
+
+        Assert.Equal(2, runs.Count);
+        Assert.Equal(higherId, runs[0].Id);
+        Assert.Equal(lowerId, runs[1].Id);
+    }
+
+    [Fact]
     public async Task MonitoringRunService_Honors_History_Limit_Of_One()
     {
         await using var db = await CreateMigratedContextAsync();
