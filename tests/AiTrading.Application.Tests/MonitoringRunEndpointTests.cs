@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace AiTrading.Application.Tests;
@@ -58,14 +59,17 @@ public sealed class MonitoringRunEndpointTests
     }
 
     [Fact]
-    public async Task DetailEndpoint_Returns_BadRequest_For_Empty_Id()
+    public async Task DetailEndpoint_Returns_BadRequest_For_Empty_Id_With_Stable_Error_Code()
     {
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "false"));
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync($"/api/monitoring/runs/{Guid.Empty}");
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("INVALID_MONITORING_RUN_ID", document.RootElement.GetProperty("errorCode").GetString());
     }
 }
