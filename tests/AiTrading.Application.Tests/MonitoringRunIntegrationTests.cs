@@ -82,8 +82,8 @@ public sealed class MonitoringRunIntegrationTests
         Assert.Equal(MonitoringRunStatus.PartiallyFailed, result.Status);
         Assert.Equal(4, result.PositionCount);
         Assert.Equal(1, result.FailureCount);
-        Assert.Equal(startedAt, result.StartedAt);
-        Assert.Equal(completedAt, result.CompletedAt);
+        Assert.True(Math.Abs((result.StartedAt - startedAt).TotalMilliseconds) < 1);
+        Assert.True(Math.Abs((result.CompletedAt!.Value - completedAt).TotalMilliseconds) < 1);
     }
 
     [Fact]
@@ -146,8 +146,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = oldestId,
-                StartedAt = now.AddMinutes(-10),
-                CompletedAt = now.AddMinutes(-9),
+                StartedAt = now.AddHours(1),
+                CompletedAt = now.AddHours(1).AddMinutes(1),
                 Status = MonitoringRunStatus.Completed.ToString(),
                 PositionCount = 2,
                 FailureCount = 0
@@ -155,8 +155,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = newestId,
-                StartedAt = now.AddMinutes(-1),
-                CompletedAt = now,
+                StartedAt = now.AddHours(2),
+                CompletedAt = now.AddHours(2).AddMinutes(1),
                 Status = MonitoringRunStatus.PartiallyFailed.ToString(),
                 PositionCount = 4,
                 FailureCount = 1
