@@ -188,26 +188,11 @@ public sealed class MonitoringRunIntegrationTests
         var startedAt = DateTimeOffset.UtcNow.AddHours(1);
         var lowerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var higherId = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        db.Set<MonitoringRunRecord>().AddRange(
-            new MonitoringRunRecord
-            {
-                Id = lowerId,
-                StartedAt = startedAt,
-                CompletedAt = startedAt.AddMinutes(1),
-                Status = MonitoringRunStatus.Completed.ToString(),
-                PositionCount = 1,
-                FailureCount = 0
-            },
-            new MonitoringRunRecord
-            {
-                Id = higherId,
-                StartedAt = startedAt,
-                CompletedAt = startedAt.AddMinutes(1),
-                Status = MonitoringRunStatus.Failed.ToString(),
-                PositionCount = 1,
-                FailureCount = 1
-            });
-        await db.SaveChangesAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO monitoring_runs (Id, StartedAt, CompletedAt, Status, PositionCount, FailureCount)
+            VALUES ({lowerId}, {startedAt}, {startedAt.AddMinutes(1)}, {MonitoringRunStatus.Completed.ToString()}, 1, 0),
+                   ({higherId}, {startedAt}, {startedAt.AddMinutes(1)}, {MonitoringRunStatus.Failed.ToString()}, 1, 1)
+            """);
 
         var options = new DbContextOptionsBuilder<TradingDbContext>()
             .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
