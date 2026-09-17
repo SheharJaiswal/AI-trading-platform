@@ -186,11 +186,8 @@ public sealed class MonitoringRunIntegrationTests
     {
         await using var db = await CreateMigratedContextAsync();
         var startedAt = DateTimeOffset.UtcNow.AddYears(50);
-        var lowerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var higherId = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        await db.Set<MonitoringRunRecord>()
-            .Where(x => x.Id == lowerId || x.Id == higherId)
-            .ExecuteDeleteAsync();
+        var lowerId = Guid.NewGuid();
+        var higherId = Guid.NewGuid();
         db.Set<MonitoringRunRecord>().AddRange(
             new MonitoringRunRecord
             {
@@ -223,8 +220,10 @@ public sealed class MonitoringRunIntegrationTests
         var runs = await runService.GetRecentRunsAsync(2, CancellationToken.None);
 
         Assert.Equal(2, runs.Count);
-        Assert.Equal(higherId, runs[0].Id);
-        Assert.Equal(lowerId, runs[1].Id);
+        var expectedFirst = lowerId.CompareTo(higherId) > 0 ? lowerId : higherId;
+        var expectedSecond = expectedFirst == lowerId ? higherId : lowerId;
+        Assert.Equal(expectedFirst, runs[0].Id);
+        Assert.Equal(expectedSecond, runs[1].Id);
     }
 
     [Fact]
