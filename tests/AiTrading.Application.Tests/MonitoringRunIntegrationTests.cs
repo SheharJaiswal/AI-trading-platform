@@ -188,6 +188,9 @@ public sealed class MonitoringRunIntegrationTests
         var startedAt = DateTimeOffset.UtcNow.AddYears(50);
         var lowerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var higherId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        await db.Set<MonitoringRunRecord>()
+            .Where(x => x.Id == lowerId || x.Id == higherId)
+            .ExecuteDeleteAsync();
         db.Set<MonitoringRunRecord>().AddRange(
             new MonitoringRunRecord
             {
