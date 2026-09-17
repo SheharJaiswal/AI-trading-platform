@@ -46,6 +46,14 @@ public sealed class MonitoringRunService(
         return await repository.GetRecentAsync(limit, cancellationToken);
     }
 
+    public async Task<MonitoringRunState?> GetRunAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("Monitoring-run id must not be empty.", nameof(id));
+
+        return await repository.GetAsync(id, cancellationToken);
+    }
+
     public async Task<int> RecoverStaleRunsAsync(TimeSpan staleAfter, CancellationToken cancellationToken)
     {
         if (staleAfter <= TimeSpan.Zero)
