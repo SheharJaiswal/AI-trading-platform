@@ -16,4 +16,16 @@ public sealed class MonitoringRunEndpointTests
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
+
+    [Fact]
+    public async Task DetailEndpoint_Returns_ServiceUnavailable_WhenPersistenceDisabled()
+    {
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "false"));
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/monitoring/runs/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+    }
 }
