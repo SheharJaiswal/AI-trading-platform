@@ -50,6 +50,43 @@ public sealed class MonitoringRunIntegrationTests
     }
 
     [Fact]
+    public async Task MonitoringRunService_Returns_Persisted_Run_By_Id()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var completedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = completedAt,
+            Status = MonitoringRunStatus.PartiallyFailed.ToString(),
+            PositionCount = 4,
+            FailureCount = 1
+        });
+        await db.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        var runService = new MonitoringRunService(
+            new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(options), Guid.NewGuid(), new NoopAlertDelivery()),
+            new EfMonitoringRunRepository(new TestDbContextFactory(options)),
+            TimeProvider.System);
+
+        var result = await runService.GetRunAsync(runId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(runId, result.Id);
+        Assert.Equal(MonitoringRunStatus.PartiallyFailed, result.Status);
+        Assert.Equal(4, result.PositionCount);
+        Assert.Equal(1, result.FailureCount);
+        Assert.Equal(startedAt, result.StartedAt);
+        Assert.Equal(completedAt, result.CompletedAt);
+    }
+
+    [Fact]
     public async Task MonitoringRunService_RecoversOnlyStaleRunningRuns_AndIsIdempotent()
     {
         await using var db = await CreateMigratedContextAsync();
