@@ -25,8 +25,8 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
 
     public async Task AddAsync(DurableShortPositionState position, CancellationToken ct)
     {
-        await using var command = CreateCommand("INSERT INTO paper_short_positions (Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version) VALUES (@id,@portfolio,@symbol,@token,@original,@remaining,@entry,@lastCover,@pnl,@state,@created,@updated,@version)");
-        Add(command, "@id", position.Id.ToString()); Add(command, "@portfolio", position.PortfolioId.ToString()); Add(command, "@symbol", position.Symbol.Value); Add(command, "@token", (object?)position.Symbol.InstrumentToken ?? DBNull.Value); Add(command, "@original", position.OriginalQuantity); Add(command, "@remaining", position.RemainingQuantity); Add(command, "@entry", position.AverageEntryPrice); Add(command, "@lastCover", position.LastCoverPrice is null ? DBNull.Value : position.LastCoverPrice.Value); Add(command, "@pnl", position.RealizedPnl); Add(command, "@state", position.State); Add(command, "@created", position.CreatedAt.UtcDateTime); Add(command, "@updated", position.UpdatedAt.UtcDateTime); Add(command, "@version", position.Version);
+        await using var command = CreateCommand("INSERT INTO paper_short_positions (Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, StopLoss, TargetPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version) VALUES (@id,@portfolio,@symbol,@token,@original,@remaining,@entry,@stopLoss,@targetPrice,@lastCover,@pnl,@state,@created,@updated,@version)");
+        Add(command, "@id", position.Id.ToString()); Add(command, "@portfolio", position.PortfolioId.ToString()); Add(command, "@symbol", position.Symbol.Value); Add(command, "@token", (object?)position.Symbol.InstrumentToken ?? DBNull.Value); Add(command, "@original", position.OriginalQuantity); Add(command, "@remaining", position.RemainingQuantity); Add(command, "@entry", position.AverageEntryPrice); Add(command, "@stopLoss", position.StopLoss is null ? DBNull.Value : position.StopLoss.Value); Add(command, "@targetPrice", position.TargetPrice is null ? DBNull.Value : position.TargetPrice.Value); Add(command, "@lastCover", position.LastCoverPrice is null ? DBNull.Value : position.LastCoverPrice.Value); Add(command, "@pnl", position.RealizedPnl); Add(command, "@state", position.State); Add(command, "@created", position.CreatedAt.UtcDateTime); Add(command, "@updated", position.UpdatedAt.UtcDateTime); Add(command, "@version", position.Version);
         await EnsureOpenAsync(command.Connection!, ct); await command.ExecuteNonQueryAsync(ct);
     }
 
@@ -61,7 +61,7 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
 
     private async Task<DurableShortPositionState?> ReadPositionAsync(Guid positionId, bool forUpdate, CancellationToken ct)
     {
-        await using var command = CreateCommand($"SELECT Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version FROM paper_short_positions WHERE Id = @id LIMIT 1{(forUpdate ? " FOR UPDATE" : "")}");
+        await using var command = CreateCommand($"SELECT Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, StopLoss, TargetPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version FROM paper_short_positions WHERE Id = @id LIMIT 1{(forUpdate ? " FOR UPDATE" : "")}");
         Add(command, "@id", positionId.ToString()); await EnsureOpenAsync(command.Connection!, ct);
         await using var reader = await command.ExecuteReaderAsync(ct); if (!await reader.ReadAsync(ct)) return null; return ReadPosition(reader);
     }
@@ -85,7 +85,7 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
     }
 
     private DbCommand CreateCommand(string sql) { var command = db.Database.GetDbConnection().CreateCommand(); command.CommandText = sql; command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction(); return command; }
-    private static DurableShortPositionState ReadPosition(DbDataReader r) => new(ParseGuid(r.GetValue(0)), ParseGuid(r.GetValue(1)), new Symbol(r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3)), r.GetInt32(4), r.GetInt32(5), r.GetDecimal(6), r.IsDBNull(7) ? null : r.GetDecimal(7), r.GetDecimal(8), r.GetString(9), ReadDate(r, 10), ReadDate(r, 11), r.GetInt64(12));
+    private static DurableShortPositionState ReadPosition(DbDataReader r) => new(ParseGuid(r.GetValue(0)), ParseGuid(r.GetValue(1)), new Symbol(r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3)), r.GetInt32(4), r.GetInt32(5), r.GetDecimal(6), r.IsDBNull(7) ? null : r.GetDecimal(7), r.IsDBNull(8) ? null : r.GetDecimal(8), r.IsDBNull(9) ? null : r.GetDecimal(9), r.GetDecimal(10), r.GetString(11), ReadDate(r, 12), ReadDate(r, 13), r.GetInt64(14));
     private static Guid ParseGuid(object value) => value is Guid g ? g : Guid.Parse(Convert.ToString(value)!);
     private static DateTimeOffset ReadDate(DbDataReader r, int i) => new(DateTime.SpecifyKind(r.GetDateTime(i), DateTimeKind.Utc));
     private static void Add(DbCommand c, string name, object value) { var p=c.CreateParameter(); p.ParameterName=name; p.Value=value; c.Parameters.Add(p); }
