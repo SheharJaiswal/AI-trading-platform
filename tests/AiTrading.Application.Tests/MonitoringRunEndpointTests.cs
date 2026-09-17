@@ -25,8 +25,10 @@ public sealed class MonitoringRunEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/monitoring/runs?limit=0");
+        var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("INVALID_LIMIT", body);
     }
 
     [Fact]
@@ -37,8 +39,10 @@ public sealed class MonitoringRunEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/monitoring/runs?limit=abc");
+        var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("INVALID_LIMIT", body);
     }
 
     [Fact]
