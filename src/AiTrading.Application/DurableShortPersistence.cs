@@ -9,6 +9,8 @@ public sealed record DurableShortPositionState(
     int OriginalQuantity,
     int RemainingQuantity,
     decimal AverageEntryPrice,
+    decimal? StopLoss,
+    decimal? TargetPrice,
     decimal? LastCoverPrice,
     decimal RealizedPnl,
     string State,
