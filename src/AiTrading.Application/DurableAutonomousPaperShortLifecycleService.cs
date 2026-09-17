@@ -34,6 +34,8 @@ public sealed class DurableAutonomousPaperShortLifecycleService(
             execution.Fill.Quantity,
             execution.Fill.FillPrice,
             execution.Fill.FilledAt,
+            execution.StopLoss,
+            execution.TargetPrice,
             cancellationToken);
 
         var status = execution.Status == "already-executed" ? "already-positioned" : "executed-and-positioned";

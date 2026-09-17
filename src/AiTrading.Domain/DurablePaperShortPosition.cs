@@ -8,6 +8,8 @@ public sealed record DurablePaperShortPosition(
     int OriginalQuantity,
     int RemainingQuantity,
     decimal AverageEntryPrice,
+    decimal? StopLoss,
+    decimal? TargetPrice,
     decimal? LastCoverPrice,
     decimal RealizedPnl,
     string State,
@@ -21,6 +23,8 @@ public sealed record DurablePaperShortPosition(
         Symbol symbol,
         int quantity,
         decimal entryPrice,
-        DateTimeOffset now) =>
-        new(id, portfolioId, symbol, quantity, quantity, entryPrice, null, 0m, "SHORT_OPEN", now, now, 0);
+        DateTimeOffset now,
+        decimal? stopLoss = null,
+        decimal? targetPrice = null) =>
+        new(id, portfolioId, symbol, quantity, quantity, entryPrice, stopLoss, targetPrice, null, 0m, "SHORT_OPEN", now, now, 0);
 }

@@ -9,7 +9,7 @@ public sealed class DurableShortRecoveryQueryServiceTests
     public async Task GetAsync_ReturnsPositionCoversAndReconciliation()
     {
         var position = new DurableShortPositionState(
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), new Symbol("DEMO", "123"), 5, 2, 100m, 104m, -12m, "SHORT_PARTIALLY_COVERED", DateTimeOffset.Parse("2026-09-14T00:00:00Z"), DateTimeOffset.Parse("2026-09-14T00:01:00Z"), 1);
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), new Symbol("DEMO", "123"), 5, 2, 100m, null, null, 104m, -12m, "SHORT_PARTIALLY_COVERED", DateTimeOffset.Parse("2026-09-14T00:00:00Z"), DateTimeOffset.Parse("2026-09-14T00:01:00Z"), 1);
         var cover = new DurableShortCoverState(
             Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"), position.Id, "cover-1", 104m, 3, -12m, 1, DateTimeOffset.Parse("2026-09-14T00:01:00Z"));
         var service = new DurableShortRecoveryQueryService(new FakeUnitOfWorkFactory(position, cover));
