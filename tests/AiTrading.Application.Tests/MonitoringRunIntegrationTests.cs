@@ -185,7 +185,7 @@ public sealed class MonitoringRunIntegrationTests
     public async Task MonitoringRunService_Uses_Id_As_TieBreaker_For_Equal_Start_Times()
     {
         await using var db = await CreateMigratedContextAsync();
-        var startedAt = DateTimeOffset.UtcNow.AddYears(500);
+        var startedAt = DateTimeOffset.UtcNow.AddYears(1000);
         var lowerRun = new MonitoringRunRecord
         {
             StartedAt = startedAt,
