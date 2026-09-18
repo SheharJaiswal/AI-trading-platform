@@ -21,7 +21,7 @@ public sealed class MonitoringRunRepositoryLimitIntegrationTests
         await using var db = new TradingDbContext(options);
         await db.Database.MigrateAsync();
 
-        var startedAt = DateTimeOffset.UtcNow.AddYears(700);
+        var startedAt = DateTimeOffset.UtcNow.AddYears(900);
         var records = Enumerable.Range(0, 101)
             .Select(index => new MonitoringRunRecord
             {
