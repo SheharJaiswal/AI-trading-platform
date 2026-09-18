@@ -5,13 +5,25 @@ using AiTrading.Infrastructure.Persistence;
 using AiTrading.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddHttpClient<IMarketDataProvider, AngelOneMarketDataProvider>();
-builder.Services.AddSingleton(new AngelOneOptions
+var marketProvider = builder.Configuration["MarketData:Provider"]?.Trim().ToLowerInvariant() ?? "demo";
+if (marketProvider == "angelone")
 {
-    ApiKey = builder.Configuration["AngelOne:ApiKey"] ?? "",
-    AuthorizationToken = builder.Configuration["AngelOne:AuthorizationToken"] ?? "",
-    BaseUrl = builder.Configuration["AngelOne:BaseUrl"] ?? "https://apiconnect.angelone.in"
-});
+    builder.Services.AddHttpClient<IMarketDataProvider, AngelOneMarketDataProvider>();
+    builder.Services.AddSingleton(new AngelOneOptions
+    {
+        ApiKey = builder.Configuration["AngelOne:ApiKey"] ?? "",
+        AuthorizationToken = builder.Configuration["AngelOne:AuthorizationToken"] ?? "",
+        BaseUrl = builder.Configuration["AngelOne:BaseUrl"] ?? "https://apiconnect.angelone.in"
+    });
+}
+else if (marketProvider == "demo")
+{
+    builder.Services.AddSingleton<IMarketDataProvider, DemoMarketDataProvider>();
+}
+else
+{
+    throw new InvalidOperationException("MarketData:Provider must be one of: demo, angelone.");
+}
 
 var persistence = TradingPersistenceOptions.FromConfiguration(builder.Configuration);
 if (persistence.Enabled)
