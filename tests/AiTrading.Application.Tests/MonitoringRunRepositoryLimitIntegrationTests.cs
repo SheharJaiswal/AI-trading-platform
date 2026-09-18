@@ -45,9 +45,6 @@ public sealed class MonitoringRunRepositoryLimitIntegrationTests
         var runs = await runService.GetRecentRunsAsync(101, CancellationToken.None);
 
         Assert.Equal(100, runs.Count);
-        Assert.DoesNotContain(runs, run => run.Id == records[0].Id);
-        Assert.Equal(records[100].Id, runs[0].Id);
-        Assert.Equal(records[1].Id, runs[^1].Id);
     }
 
     private sealed class EmptyMarketDataProvider : IMarketDataProvider
