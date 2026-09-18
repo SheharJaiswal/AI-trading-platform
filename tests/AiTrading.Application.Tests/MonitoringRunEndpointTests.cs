@@ -99,7 +99,7 @@ public sealed class MonitoringRunEndpointTests
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("\\\"status\\\":\\\"ready\\\"", body);
+        Assert.Contains("\"status\":\"ready\"", body);
     }
 
 }
