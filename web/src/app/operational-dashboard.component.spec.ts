@@ -19,6 +19,7 @@ describe('OperationalDashboardComponent', () => {
   function flushDashboard(fixture: ComponentFixture<OperationalDashboardComponent>, aiProvider: string, marketProvider = 'demo', persistence = true) {
     fixture.detectChanges();
     http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider, aiProvider, persistence });
+    http.expectOne('/ready').flush({ status: 'ready', mode: 'paper', persistence });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
@@ -31,6 +32,7 @@ describe('OperationalDashboardComponent', () => {
     flushDashboard(fixture, 'disabled');
     expect(fixture.nativeElement.textContent).toContain('DURABLE');
     expect(fixture.nativeElement.textContent).toContain('MySQL-backed paper state');
+    expect(fixture.nativeElement.textContent).toContain('API ready');
   });
 
   it('shows in-memory persistence state when durable storage is disabled', () => {
@@ -41,10 +43,24 @@ describe('OperationalDashboardComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Monitoring history requires durable MySQL persistence.');
   });
 
+  it('does not load operational data when the API is live but not ready', () => {
+    const fixture = TestBed.createComponent(OperationalDashboardComponent);
+    fixture.detectChanges();
+    http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: true });
+    http.expectOne('/ready').flush({ status: 'not_ready', mode: 'paper', persistence: true }, { status: 503, statusText: 'Service Unavailable' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('The trading API is live but not ready for operational data.');
+    http.expectNone('/api/portfolio');
+    http.expectNone('/api/alerts');
+    http.expectNone('/api/evaluations/metrics');
+    http.expectNone('/api/monitoring/runs?limit=20');
+  });
+
   it('renders the durable portfolio cash and P&L snapshot', () => {
     const fixture = TestBed.createComponent(OperationalDashboardComponent);
     fixture.detectChanges();
     http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: true });
+    http.expectOne('/ready').flush({ status: 'ready', mode: 'paper', persistence: true });
     http.expectOne('/api/portfolio').flush({ cash: 12345.67, positions: [{ id: 'position-1', symbol: 'INFY', quantity: 2, averageEntryPrice: 1500, stopLoss: 1400 }], unrealizedPnl: 234.56, realizedPnl: -45.67 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
@@ -63,6 +79,7 @@ describe('OperationalDashboardComponent', () => {
     const fixture = TestBed.createComponent(OperationalDashboardComponent);
     fixture.detectChanges();
     http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: true });
+    http.expectOne('/ready').flush({ status: 'ready', mode: 'paper', persistence: true });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
@@ -110,6 +127,7 @@ describe('OperationalDashboardComponent', () => {
 
     expect(fixture.componentInstance.loadedAt).toBeUndefined();
     http.expectOne('/health').flush({ status: 'ok', mode: 'paper', marketProvider: 'demo', aiProvider: 'disabled', persistence: false });
+    http.expectOne('/ready').flush({ status: 'ready', mode: 'paper', persistence: false });
     http.expectOne('/api/portfolio').flush({ cash: 1000, positions: [], unrealizedPnl: 0, realizedPnl: 0 });
     http.expectOne('/api/alerts').flush([]);
     http.expectOne('/api/evaluations/metrics').flush({ total: 0, evaluated: 0, wins: 0, losses: 0, directionalAccuracy: 0, cumulativeReturn: 0, maxDrawdown: 0, unitPnl: 0 });
