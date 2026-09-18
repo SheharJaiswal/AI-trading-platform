@@ -1,15 +1,11 @@
-export interface ApiErrorPayload {
-  errorCode?: string;
-  message?: string;
-}
+import {ApiError} from './trading-api.models';
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (!error || typeof error !== 'object') return fallback;
 
-  const response = error as { error?: unknown };
-  const payload = response.error;
+  const payload = (error as { error?: unknown }).error;
   if (payload && typeof payload === 'object') {
-    const typed = payload as ApiErrorPayload;
+    const typed = payload as ApiError;
     if (typeof typed.message === 'string' && typed.message.trim()) return typed.message;
     if (typeof typed.errorCode === 'string' && typed.errorCode.trim()) return typed.errorCode;
   }
