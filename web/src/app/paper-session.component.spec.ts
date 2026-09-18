@@ -48,13 +48,13 @@ describe('PaperSessionComponent',()=>{
     expect(component.portfolio?.cash).toBe(100000);
   });
 
-  it('renders the durable event ledger with risk outcome and fill price',()=>{
-    component.audit={events:[{eventId:'evt-42',orderId:'order-1',symbol:{value:'INFY'},quantity:2,riskDecision:'Approved',riskReason:'',fillPrice:101.25,createdAt:'2026-09-18T00:00:00Z'}],orders:[],fills:[],executionMode:'PAPER_ONLY'};
+  it('renders the durable event ledger with risk outcome, reason, and fill price',()=>{
+    component.audit={events:[{eventId:'evt-42',orderId:'order-1',symbol:{value:'INFY'},quantity:2,riskDecision:'RiskBlocked',riskReason:'virtual cash limit',fillPrice:null,createdAt:'2026-09-18T00:00:00Z'}],orders:[],fills:[],executionMode:'PAPER_ONLY'};
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Event ledger');
     expect(fixture.nativeElement.textContent).toContain('evt-42');
-    expect(fixture.nativeElement.textContent).toContain('Approved');
-    expect(fixture.nativeElement.textContent).toContain('fill 101.25');
+    expect(fixture.nativeElement.textContent).toContain('RiskBlocked');
+    expect(fixture.nativeElement.textContent).toContain('virtual cash limit');
   });
 
   it('surfaces event API failures without implying execution succeeded',()=>{
