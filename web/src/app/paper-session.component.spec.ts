@@ -33,6 +33,21 @@ describe('PaperSessionComponent',()=>{
     expect(fixture.nativeElement.textContent).toContain('Start');
   });
 
+  it('refreshes audit and portfolio after a successful lifecycle transition',()=>{
+    component.session={id:'session-1',status:'Draft',configuration:{symbols:[{value:'INFY'}],interval:'1m',strategyVersion:'baseline-v1',startingCash:100000},createdAt:'2026-09-09T00:00:00Z',updatedAt:'2026-09-09T00:00:00Z'};
+    component.transition('start');
+    const transition=http.expectOne('/api/paper-sessions/session-1/start');
+    expect(transition.request.method).toBe('POST');
+    transition.flush({...component.session,status:'Running'});
+    const audit=http.expectOne('/api/paper-sessions/session-1/audit');
+    const portfolio=http.expectOne('/api/portfolio');
+    audit.flush({events:[],orders:[],fills:[],executionMode:'PAPER_ONLY'});
+    portfolio.flush({cash:100000,positions:[],unrealizedPnl:0,realizedPnl:0});
+    expect(component.session?.status).toBe('Running');
+    expect(component.audit?.executionMode).toBe('PAPER_ONLY');
+    expect(component.portfolio?.cash).toBe(100000);
+  });
+
   it('surfaces event API failures without implying execution succeeded',()=>{
     component.session={id:'session-1',status:'Running',configuration:{symbols:[{value:'INFY'}],interval:'1m',strategyVersion:'baseline-v1',startingCash:100000},createdAt:'2026-09-09T00:00:00Z',updatedAt:'2026-09-09T00:00:00Z'};
     component.processEvent();
