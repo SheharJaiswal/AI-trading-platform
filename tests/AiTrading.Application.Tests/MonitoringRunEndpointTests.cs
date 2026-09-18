@@ -88,4 +88,18 @@ public sealed class MonitoringRunEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Contains("MONITORING_RUN_NOT_FOUND", body);
     }
+    [Fact]
+    public async Task ReadinessEndpoint_Returns_Ready_When_Persistence_Disabled()
+    {
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting("Persistence:MySql:Enabled", "false"));
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/ready");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\\\"status\\\":\\\"ready\\\"", body);
+    }
+
 }
