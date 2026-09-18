@@ -21,7 +21,7 @@ A spec-driven AI-assisted trading platform built around deterministic financial 
 - Deterministic autonomous paper-session cycle with ranked candidates and no-decision outcomes
 - Explicit autonomous paper-short session cycle with durable short-position linkage
 - Angular research, paper-trading, paper-session and backtesting workspaces
-- OpenAPI, health endpoint and automated .NET + Angular CI
+- OpenAPI, liveness (`/health`) and persistence readiness (`/ready`) endpoints with automated .NET + Angular CI
 
 ## Safety boundary
 
