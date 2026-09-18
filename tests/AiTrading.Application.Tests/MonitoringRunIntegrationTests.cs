@@ -186,28 +186,23 @@ public sealed class MonitoringRunIntegrationTests
     {
         await using var db = await CreateMigratedContextAsync();
         var startedAt = DateTimeOffset.UtcNow.AddYears(500);
-        var idPrefix = Guid.NewGuid().ToString()[..24];
-        var lowerId = Guid.Parse($"{idPrefix}0000-0000-0000-000000000001");
-        var higherId = Guid.Parse($"{idPrefix}0000-0000-0000-000000000002");
-        db.Set<MonitoringRunRecord>().AddRange(
-            new MonitoringRunRecord
-            {
-                Id = lowerId,
-                StartedAt = startedAt,
-                CompletedAt = startedAt.AddMinutes(1),
-                Status = MonitoringRunStatus.Completed.ToString(),
-                PositionCount = 1,
-                FailureCount = 0
-            },
-            new MonitoringRunRecord
-            {
-                Id = higherId,
-                StartedAt = startedAt,
-                CompletedAt = startedAt.AddMinutes(1),
-                Status = MonitoringRunStatus.Failed.ToString(),
-                PositionCount = 1,
-                FailureCount = 1
-            });
+        var lowerRun = new MonitoringRunRecord
+        {
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddMinutes(1),
+            Status = MonitoringRunStatus.Completed.ToString(),
+            PositionCount = 1,
+            FailureCount = 0
+        };
+        var higherRun = new MonitoringRunRecord
+        {
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddMinutes(1),
+            Status = MonitoringRunStatus.Failed.ToString(),
+            PositionCount = 1,
+            FailureCount = 1
+        };
+        db.Set<MonitoringRunRecord>().AddRange(lowerRun, higherRun);
         await db.SaveChangesAsync();
 
         var options = new DbContextOptionsBuilder<TradingDbContext>()
@@ -219,10 +214,16 @@ public sealed class MonitoringRunIntegrationTests
             TimeProvider.System);
 
         var runs = await runService.GetRecentRunsAsync(2, CancellationToken.None);
+        var expectedIds = await db.Set<MonitoringRunRecord>()
+            .AsNoTracking()
+            .Where(x => x.StartedAt == startedAt)
+            .OrderByDescending(x => x.Id)
+            .Select(x => x.Id)
+            .ToListAsync();
 
         Assert.Equal(2, runs.Count);
-        Assert.Equal(higherId, runs[0].Id);
-        Assert.Equal(lowerId, runs[1].Id);
+        Assert.Equal(expectedIds, runs.Select(x => x.Id).ToList());
+        Assert.NotEqual(runs[0].Id, runs[1].Id);
     }
 
     [Fact]
@@ -236,8 +237,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = olderId,
-                StartedAt = now.AddHours(3),
-                CompletedAt = now.AddHours(3).AddMinutes(1),
+                StartedAt = now.AddYears(600),
+                CompletedAt = now.AddYears(600).AddMinutes(1),
                 Status = MonitoringRunStatus.Completed.ToString(),
                 PositionCount = 1,
                 FailureCount = 0
@@ -245,8 +246,8 @@ public sealed class MonitoringRunIntegrationTests
             new MonitoringRunRecord
             {
                 Id = newerId,
-                StartedAt = now.AddHours(4),
-                CompletedAt = now.AddHours(4).AddMinutes(1),
+                StartedAt = now.AddYears(601),
+                CompletedAt = now.AddYears(601).AddMinutes(1),
                 Status = MonitoringRunStatus.Failed.ToString(),
                 PositionCount = 1,
                 FailureCount = 1
