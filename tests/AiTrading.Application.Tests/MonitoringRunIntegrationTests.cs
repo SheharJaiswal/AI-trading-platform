@@ -214,15 +214,16 @@ public sealed class MonitoringRunIntegrationTests
             TimeProvider.System);
 
         var runs = await runService.GetRecentRunsAsync(2, CancellationToken.None);
+        var expectedIds = await db.Set<MonitoringRunRecord>()
+            .AsNoTracking()
+            .Where(x => x.StartedAt == startedAt)
+            .OrderByDescending(x => x.Id)
+            .Select(x => x.Id)
+            .ToListAsync();
 
         Assert.Equal(2, runs.Count);
-        Assert.NotEqual(lowerRun.Id, higherRun.Id);
-        var expectedFirst = string.CompareOrdinal(higherRun.Id.ToString("D"), lowerRun.Id.ToString("D")) > 0
-            ? higherRun.Id
-            : lowerRun.Id;
-        var expectedSecond = expectedFirst == higherRun.Id ? lowerRun.Id : higherRun.Id;
-        Assert.Equal(expectedFirst, runs[0].Id);
-        Assert.Equal(expectedSecond, runs[1].Id);
+        Assert.Equal(expectedIds, runs.Select(x => x.Id).ToList());
+        Assert.NotEqual(runs[0].Id, runs[1].Id);
     }
 
     [Fact]
