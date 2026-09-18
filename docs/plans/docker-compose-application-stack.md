@@ -20,4 +20,4 @@ Provide one command to run the Angular dashboard, .NET API, and MySQL persistenc
 
 ## Verification
 
-Docker CI validates Compose syntax and builds both application images. Runtime startup waits for the MySQL health check, applies EF migrations, then starts the API; the web service waits for API health.
+Docker CI validates Compose syntax and builds both application images. Runtime startup waits for the MySQL health check, applies EF migrations, then starts the API. The API container health check uses the persistence-aware `/ready` probe, so the web service waits for an API that can reach its configured MySQL persistence before starting.
