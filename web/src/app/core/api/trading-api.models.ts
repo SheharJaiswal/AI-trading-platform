@@ -1,4 +1,5 @@
 export interface HealthStatus{status:string;mode:'paper'|string;marketProvider:string;aiProvider?:string;persistence:boolean}
+export interface ReadinessStatus{status:'ready'|'not_ready'|string;mode:'paper'|string;persistence:boolean}
 export interface PositionSnapshot{id:string;symbol:string;quantity:number;averageEntryPrice:number;stopLoss?:number}
 export interface PortfolioSnapshot{cash:number;positions?:PositionSnapshot[];unrealizedPnl?:number;realizedPnl?:number;[key:string]:unknown}
 export interface AlertSnapshot{key:string;severity:'Info'|'Warning'|'High'|'Critical'|string;message:string;createdAt:string;symbol?:string}
