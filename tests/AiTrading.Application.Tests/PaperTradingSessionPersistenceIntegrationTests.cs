@@ -103,6 +103,32 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 
+    [Fact]
+    public async Task MySql_Returns_Session_Events_In_Deterministic_Order_When_Timestamps_Tie()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var sessionId = Guid.NewGuid();
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        var repository = new EfPaperTradingEventAuditRepository(db);
+
+        db.PaperTradingEventAudits.AddRange(
+            new PaperTradingEventAuditRecord
+            {
+                Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-b", OrderId = Guid.NewGuid(), Symbol = "TCS",
+                Quantity = 1, RiskDecision = "Approved", RiskReason = "", FillPrice = 100m, CreatedAt = now
+            },
+            new PaperTradingEventAuditRecord
+            {
+                Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-a", OrderId = Guid.NewGuid(), Symbol = "TCS",
+                Quantity = 1, RiskDecision = "RiskBlocked", RiskReason = "test", FillPrice = null, CreatedAt = now
+            });
+        await db.SaveChangesAsync();
+
+        var events = await repository.GetBySessionAsync(sessionId, CancellationToken.None);
+
+        Assert.Equal(["evt-b", "evt-a"], events.Select(x => x.EventId).ToArray());
+    }
+
     private static DateTimeOffset TruncateToMySqlMicroseconds(DateTimeOffset value)
         => new(value.Ticks - (value.Ticks % TimeSpan.TicksPerMicrosecond), value.Offset);
 
