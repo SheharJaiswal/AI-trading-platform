@@ -48,6 +48,15 @@ describe('PaperSessionComponent',()=>{
     expect(component.portfolio?.cash).toBe(100000);
   });
 
+  it('renders the durable event ledger with risk outcome and fill price',()=>{
+    component.audit={events:[{eventId:'evt-42',orderId:'order-1',symbol:{value:'INFY'},quantity:2,riskDecision:'Approved',riskReason:'',fillPrice:101.25,createdAt:'2026-09-18T00:00:00Z'}],orders:[],fills:[],executionMode:'PAPER_ONLY'};
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Event ledger');
+    expect(fixture.nativeElement.textContent).toContain('evt-42');
+    expect(fixture.nativeElement.textContent).toContain('Approved');
+    expect(fixture.nativeElement.textContent).toContain('fill 101.25');
+  });
+
   it('surfaces event API failures without implying execution succeeded',()=>{
     component.session={id:'session-1',status:'Running',configuration:{symbols:[{value:'INFY'}],interval:'1m',strategyVersion:'baseline-v1',startingCash:100000},createdAt:'2026-09-09T00:00:00Z',updatedAt:'2026-09-09T00:00:00Z'};
     component.processEvent();
