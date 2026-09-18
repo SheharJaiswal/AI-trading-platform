@@ -40,7 +40,7 @@ services:
       - "8080:8080"
     command: ["sh", "-c", "/app/efbundle --connection \"$${ConnectionStrings__MySql}\" && exec dotnet AiTrading.Api.dll"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep -q '\"status\":\"ok\"'"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ready | grep -q '\"status\":\"ready\"'"]
       interval: 10s
       timeout: 5s
       retries: 12
