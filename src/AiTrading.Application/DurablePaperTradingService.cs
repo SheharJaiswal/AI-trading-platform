@@ -43,7 +43,8 @@ public sealed class DurablePaperTradingService(
         }
         finally
         {
-            InFlight.TryRemove(new KeyValuePair<string, TaskCompletionSource<InFlightExecution>>(idempotencyKey, completion));
+            if (InFlight.TryGetValue(idempotencyKey, out var current) && ReferenceEquals(current, completion))
+                InFlight.TryRemove(idempotencyKey, out _);
         }
     }
 
