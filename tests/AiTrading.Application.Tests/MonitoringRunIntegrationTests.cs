@@ -185,28 +185,24 @@ public sealed class MonitoringRunIntegrationTests
     public async Task MonitoringRunService_Uses_Id_As_TieBreaker_For_Equal_Start_Times()
     {
         await using var db = await CreateMigratedContextAsync();
-        var startedAt = DateTimeOffset.UtcNow.AddHours(1);
-        var lowerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var higherId = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        db.Set<MonitoringRunRecord>().AddRange(
-            new MonitoringRunRecord
-            {
-                Id = lowerId,
-                StartedAt = startedAt,
-                CompletedAt = startedAt.AddMinutes(1),
-                Status = MonitoringRunStatus.Completed.ToString(),
-                PositionCount = 1,
-                FailureCount = 0
-            },
-            new MonitoringRunRecord
-            {
-                Id = higherId,
-                StartedAt = startedAt,
-                CompletedAt = startedAt.AddMinutes(1),
-                Status = MonitoringRunStatus.Failed.ToString(),
-                PositionCount = 1,
-                FailureCount = 1
-            });
+        var startedAt = DateTimeOffset.UtcNow.AddHours(-1);
+        var lowerRun = new MonitoringRunRecord
+        {
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddMinutes(1),
+            Status = MonitoringRunStatus.Completed.ToString(),
+            PositionCount = 1,
+            FailureCount = 0
+        };
+        var higherRun = new MonitoringRunRecord
+        {
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddMinutes(1),
+            Status = MonitoringRunStatus.Failed.ToString(),
+            PositionCount = 1,
+            FailureCount = 1
+        };
+        db.Set<MonitoringRunRecord>().AddRange(lowerRun, higherRun);
         await db.SaveChangesAsync();
 
         var options = new DbContextOptionsBuilder<TradingDbContext>()
@@ -220,8 +216,13 @@ public sealed class MonitoringRunIntegrationTests
         var runs = await runService.GetRecentRunsAsync(2, CancellationToken.None);
 
         Assert.Equal(2, runs.Count);
-        Assert.Equal(higherId, runs[0].Id);
-        Assert.Equal(lowerId, runs[1].Id);
+        Assert.NotEqual(lowerRun.Id, higherRun.Id);
+        var expectedFirst = string.CompareOrdinal(higherRun.Id.ToString("D"), lowerRun.Id.ToString("D")) > 0
+            ? higherRun.Id
+            : lowerRun.Id;
+        var expectedSecond = expectedFirst == higherRun.Id ? lowerRun.Id : higherRun.Id;
+        Assert.Equal(expectedFirst, runs[0].Id);
+        Assert.Equal(expectedSecond, runs[1].Id);
     }
 
     [Fact]
