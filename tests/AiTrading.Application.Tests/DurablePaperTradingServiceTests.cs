@@ -69,6 +69,24 @@ public sealed class DurablePaperTradingServiceTests
         Assert.Equal(1, execution.CallCount);
     }
 
+    [Fact]
+    public async Task Cancelling_Idempotent_Waiter_Does_Not_Cancel_Owner_Execution()
+    {
+        var portfolioId = Guid.NewGuid(); var orderId = Guid.NewGuid(); var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, DateTimeOffset.UtcNow, 1));
+        var execution = new BlockingExecution(); var service = CreateService(unitOfWork, execution);
+        var first = Task.Run(() => service.ExecuteAsync(portfolioId, orderId, "cancel-waiter", symbol, 1, CancellationToken.None));
+        await execution.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        using var waiterCancellation = new CancellationTokenSource();
+        var second = service.ExecuteAsync(portfolioId, orderId, "cancel-waiter", symbol, 1, waiterCancellation.Token);
+        waiterCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await second);
+        execution.Release.TrySetResult(true);
+        var ownerResult = await first;
+        Assert.Equal(1, execution.CallCount);
+        Assert.NotNull(ownerResult.Fill);
+    }
+
     private static DurablePaperTradingService CreateService(FakeUnitOfWork unitOfWork, IPaperExecutionProvider execution) => new(new RecommendationService(new FakeMarketData()), new RiskEngine(), execution, new FakeUnitOfWorkFactory(unitOfWork), 10_000m);
     private sealed class CountingExecution : IPaperExecutionProvider { public int CallCount { get; private set; } public Task<Fill> ExecuteAsync(PaperOrder order, CancellationToken cancellationToken) { CallCount++; return Task.FromResult(new Fill(order.Id, order.Symbol, order.Side, order.Quantity, order.LimitPrice, DateTimeOffset.UtcNow, "paper-test")); } }
     private sealed class BlockingExecution : IPaperExecutionProvider { public int CallCount { get; private set; } public TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously); public TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously); public async Task<Fill> ExecuteAsync(PaperOrder order, CancellationToken cancellationToken) { CallCount++; Started.TrySetResult(true); await Release.Task.WaitAsync(cancellationToken); return new Fill(order.Id, order.Symbol, order.Side, order.Quantity, order.LimitPrice, DateTimeOffset.UtcNow, "paper-test"); } }
