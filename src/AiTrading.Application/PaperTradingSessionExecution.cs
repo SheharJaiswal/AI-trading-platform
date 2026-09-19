@@ -21,6 +21,21 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
             throw new InvalidOperationException("Symbol is not part of the paper trading session configuration.");
         var key = $"session:{request.SessionId:N}:event:{request.EventId}";
         var orderId = DeterministicGuid(key);
+
+        if (unitOfWorkFactory is not null)
+        {
+            await using var replayUow = await unitOfWorkFactory.CreateAsync(ct);
+            var existing = (await replayUow.PaperTradingEventAudits.GetBySessionAsync(request.SessionId, ct))
+                .FirstOrDefault(x => x.EventId == request.EventId);
+            if (existing is not null)
+            {
+                if (!Enum.TryParse<RiskDecision>(existing.RiskDecision, out var decision))
+                    throw new InvalidOperationException("Persisted paper event audit contains an invalid risk decision.");
+                var existingFill = await replayUow.Orders.GetFillByOrderIdAsync(existing.OrderId, ct);
+                return new(request.SessionId, request.EventId, new RiskResult(decision, string.IsNullOrEmpty(existing.RiskReason) ? null : existing.RiskReason), existingFill, "PAPER_ONLY");
+            }
+        }
+
         var result = await paperTrades.ExecuteAsync(DeterministicGuid($"portfolio:{request.SessionId:N}"), orderId, key, request.Symbol, request.Quantity, ct);
         if (unitOfWorkFactory is not null)
         {
