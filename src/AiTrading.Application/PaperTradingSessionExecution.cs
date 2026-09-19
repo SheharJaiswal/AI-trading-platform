@@ -25,8 +25,7 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
         if (unitOfWorkFactory is not null)
         {
             await using var replayUow = await unitOfWorkFactory.CreateAsync(ct);
-            var existing = (await replayUow.PaperTradingEventAudits.GetBySessionAsync(request.SessionId, ct))
-                .FirstOrDefault(x => x.EventId == request.EventId);
+            var existing = await replayUow.PaperTradingEventAudits.GetBySessionAndEventAsync(request.SessionId, request.EventId, ct);
             if (existing is not null)
             {
                 if (!Enum.TryParse<RiskDecision>(existing.RiskDecision, out var decision))
@@ -40,8 +39,8 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
         if (unitOfWorkFactory is not null)
         {
             await using var uow = await unitOfWorkFactory.CreateAsync(ct);
-            var existing = await uow.PaperTradingEventAudits.GetBySessionAsync(request.SessionId, ct);
-            if (!existing.Any(x => x.EventId == request.EventId))
+            var existing = await uow.PaperTradingEventAudits.GetBySessionAndEventAsync(request.SessionId, request.EventId, ct);
+            if (existing is null)
             {
                 await uow.PaperTradingEventAudits.AddAsync(new PaperTradingEventAuditState(Guid.NewGuid(), request.SessionId, request.EventId, orderId, request.Symbol, request.Quantity, result.Risk.Decision.ToString(), result.Risk.Reason ?? string.Empty, result.Fill?.FillPrice, DateTimeOffset.UtcNow), ct);
                 await uow.CommitAsync(ct);

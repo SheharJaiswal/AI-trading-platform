@@ -134,6 +134,25 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
     }
 
     [Fact]
+    public async Task MySql_Targeted_Session_Event_Lookup_Returns_Only_Requested_Event()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var sessionId = Guid.NewGuid();
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        db.PaperTradingEventAudits.AddRange(
+            new PaperTradingEventAuditRecord { Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-target", OrderId = Guid.NewGuid(), Symbol = "TCS", Quantity = 1, RiskDecision = "Approved", RiskReason = "target", FillPrice = 100m, CreatedAt = now },
+            new PaperTradingEventAuditRecord { Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-other", OrderId = Guid.NewGuid(), Symbol = "TCS", Quantity = 1, RiskDecision = "RiskBlocked", RiskReason = "other", FillPrice = null, CreatedAt = now.AddSeconds(1) });
+        await db.SaveChangesAsync();
+
+        var repository = new EfPaperTradingEventAuditRepository(db);
+        var result = await repository.GetBySessionAndEventAsync(sessionId, "evt-target", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("evt-target", result!.EventId);
+        Assert.Equal("target", result.RiskReason);
+    }
+
+    [Fact]
     public async Task MySql_Returns_Session_Events_In_Deterministic_Order_When_Timestamps_Tie()
     {
         await using var db = await CreateMigratedContextAsync();

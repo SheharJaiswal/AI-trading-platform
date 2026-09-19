@@ -174,6 +174,8 @@ public sealed class PaperTradingSessionExecutionTests
             audits.Add(audit);
             return Task.CompletedTask;
         }
+        public Task<PaperTradingEventAuditState?> GetBySessionAndEventAsync(Guid sessionId, string eventId, CancellationToken cancellationToken) =>
+            Task.FromResult(audits.FirstOrDefault(x => x.SessionId == sessionId && x.EventId == eventId));
         public Task<IReadOnlyList<PaperTradingEventAuditState>> GetBySessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<PaperTradingEventAuditState>>(audits.Where(x => x.SessionId == sessionId).ToArray());
     }
