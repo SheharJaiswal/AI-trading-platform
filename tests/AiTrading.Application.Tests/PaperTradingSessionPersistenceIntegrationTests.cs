@@ -134,6 +134,38 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
     }
 
     [Fact]
+    public async Task MySql_Concurrent_Duplicate_Session_Event_Audit_Commits_Are_Idempotent()
+    {
+        await using var seedDb = await CreateMigratedContextAsync();
+        var sessionId = Guid.NewGuid();
+        var eventId = $"concurrent-{Guid.NewGuid():N}";
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        seedDb.PaperTradingEventAudits.Add(new PaperTradingEventAuditRecord
+        {
+            Id = Guid.NewGuid(), SessionId = sessionId, EventId = eventId, OrderId = Guid.NewGuid(), Symbol = "TCS",
+            Quantity = 1, RiskDecision = "Approved", RiskReason = "winner", FillPrice = 100m, CreatedAt = now
+        });
+        await seedDb.SaveChangesAsync();
+
+        async Task CommitDuplicateAsync(string reason)
+        {
+            await using var db = await CreateMigratedContextAsync();
+            await using var unitOfWork = new EfTradingUnitOfWork(db);
+            await unitOfWork.PaperTradingEventAudits.AddAsync(new PaperTradingEventAuditState(
+                Guid.NewGuid(), sessionId, eventId, Guid.NewGuid(), new Symbol("TCS"), 1, "Approved", reason, 100m, now.AddSeconds(1)),
+                CancellationToken.None);
+            await unitOfWork.CommitAsync(CancellationToken.None);
+        }
+
+        await Task.WhenAll(CommitDuplicateAsync("duplicate-a"), CommitDuplicateAsync("duplicate-b"));
+
+        await using var verifyDb = await CreateMigratedContextAsync();
+        var events = await verifyDb.PaperTradingEventAudits.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync();
+        Assert.Single(events);
+        Assert.Equal("winner", events[0].RiskReason);
+    }
+
+    [Fact]
     public async Task MySql_Targeted_Session_Event_Lookup_Returns_Only_Requested_Event()
     {
         await using var db = await CreateMigratedContextAsync();
