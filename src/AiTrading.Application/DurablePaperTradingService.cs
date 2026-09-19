@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AiTrading.Domain;
 
 namespace AiTrading.Application;
@@ -10,6 +11,9 @@ public sealed class DurablePaperTradingService(
     ITradingUnitOfWorkFactory unitOfWorkFactory,
     decimal startingCash) : IPaperTradeService
 {
+    private sealed record InFlightExecution(Guid OrderId, RiskResult Risk, FillState? Fill);
+    private static readonly ConcurrentDictionary<string, TaskCompletionSource<InFlightExecution>> InFlight = new(StringComparer.Ordinal);
+
     public async Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 128)
@@ -17,6 +21,35 @@ public sealed class DurablePaperTradingService(
         if (startingCash <= 0)
             throw new InvalidOperationException("Starting cash must be positive.");
 
+        var completion = new TaskCompletionSource<InFlightExecution>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!InFlight.TryAdd(idempotencyKey, completion))
+        {
+            var shared = await InFlight[idempotencyKey].Task.WaitAsync(cancellationToken);
+            if (shared.OrderId != orderId)
+                throw new InvalidOperationException("The idempotency key is already associated with a different order.");
+            return (shared.Risk, shared.Fill);
+        }
+
+        try
+        {
+            var result = await ExecuteCoreAsync(portfolioId, orderId, idempotencyKey, symbol, quantity, cancellationToken);
+            completion.TrySetResult(new InFlightExecution(orderId, result.Risk, result.Fill));
+            return result;
+        }
+        catch (Exception ex)
+        {
+            completion.TrySetException(ex);
+            throw;
+        }
+        finally
+        {
+            if (InFlight.TryGetValue(idempotencyKey, out var current) && ReferenceEquals(current, completion))
+                InFlight.TryRemove(idempotencyKey, out _);
+        }
+    }
+
+    private async Task<(RiskResult Risk, FillState? Fill)> ExecuteCoreAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
+    {
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
         var existingOrder = await unitOfWork.Orders.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
         if (existingOrder is not null)
