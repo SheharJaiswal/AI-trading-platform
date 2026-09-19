@@ -87,6 +87,20 @@ public sealed class DurablePaperTradingServiceTests
         Assert.NotNull(ownerResult.Fill);
     }
 
+    [Fact]
+    public async Task PreCancelled_Owner_Does_Not_Execute_Paper_Order()
+    {
+        var portfolioId = Guid.NewGuid(); var orderId = Guid.NewGuid(); var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, DateTimeOffset.UtcNow, 1));
+        var execution = new CountingExecution(); var service = CreateService(unitOfWork, execution);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.ExecuteAsync(portfolioId, orderId, "pre-cancelled", symbol, 1, cancellation.Token));
+        Assert.Equal(0, execution.CallCount);
+        Assert.Null(await unitOfWork.OrdersStore.GetAsync(orderId, CancellationToken.None));
+    }
+
     private static DurablePaperTradingService CreateService(FakeUnitOfWork unitOfWork, IPaperExecutionProvider execution) => new(new RecommendationService(new FakeMarketData()), new RiskEngine(), execution, new FakeUnitOfWorkFactory(unitOfWork), 10_000m);
     private sealed class CountingExecution : IPaperExecutionProvider { public int CallCount { get; private set; } public Task<Fill> ExecuteAsync(PaperOrder order, CancellationToken cancellationToken) { CallCount++; return Task.FromResult(new Fill(order.Id, order.Symbol, order.Side, order.Quantity, order.LimitPrice, DateTimeOffset.UtcNow, "paper-test")); } }
     private sealed class BlockingExecution : IPaperExecutionProvider { public int CallCount { get; private set; } public TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously); public TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously); public async Task<Fill> ExecuteAsync(PaperOrder order, CancellationToken cancellationToken) { CallCount++; Started.TrySetResult(true); await Release.Task.WaitAsync(cancellationToken); return new Fill(order.Id, order.Symbol, order.Side, order.Quantity, order.LimitPrice, DateTimeOffset.UtcNow, "paper-test"); } }
@@ -101,5 +115,5 @@ public sealed class DurablePaperTradingServiceTests
     private sealed class NoOpMarketDataRepository : IMarketDataSnapshotRepository { public Task AddAsync(MarketDataSnapshotState snapshot, CancellationToken cancellationToken) => Task.CompletedTask; public Task<MarketDataSnapshotState?> GetLatestAsync(Symbol symbol, CancellationToken cancellationToken) => Task.FromResult<MarketDataSnapshotState?>(null); }
     private sealed class NoOpHistoricalCandleRepository : IHistoricalCandleRepository { public Task AddRangeAsync(IReadOnlyList<HistoricalCandleState> candles, CancellationToken cancellationToken) => Task.CompletedTask; public Task<IReadOnlyList<HistoricalCandleState>> GetRangeAsync(Symbol symbol, string interval, DateTimeOffset start, DateTimeOffset end, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<HistoricalCandleState>>([]); }
     private sealed class NoOpBacktestRunRepository : IBacktestRunRepository { public Task AddAsync(BacktestRunState run, CancellationToken cancellationToken) => Task.CompletedTask; public Task<BacktestRunState?> GetAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BacktestRunState?>(null); }
-    private sealed class NoOpBacktestAuditRepository : IBacktestAuditRepository { public Task AddAsync(Guid runId, IReadOnlyList<BacktestTradeAuditState> trades, IReadOnlyList<BacktestRiskAuditState> riskEvents, CancellationToken cancellationToken) => Task.CompletedTask; public Task<(IReadOnlyList<BacktestTradeAuditState> Trades, IReadOnlyList<BacktestRiskAuditState> RiskEvents)> GetAsync(Guid runId, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<BacktestTradeAuditState>, IReadOnlyList<BacktestRiskAuditState>)>(([], [])); }
+    private sealed class NoOpBacktestAuditRepository : IBacktestAuditRepository { public Task AddAsync(Guid runId, IReadOnlyList<BacktestTradeAuditState> trades, IReadOnlyList<BacktestRiskAuditState> riskEvents, CancellationToken cancellationToken) => Task.FromResult((IReadOnlyList<BacktestTradeAuditState>)[]); public Task<(IReadOnlyList<BacktestTradeAuditState> Trades, IReadOnlyList<BacktestRiskAuditState> RiskEvents)> GetAsync(Guid runId, CancellationToken cancellationToken) => Task.FromResult<(IReadOnlyList<BacktestTradeAuditState>, IReadOnlyList<BacktestRiskAuditState>)>(([], [])); }
 }
