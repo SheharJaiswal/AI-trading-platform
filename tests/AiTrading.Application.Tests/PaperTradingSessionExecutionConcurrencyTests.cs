@@ -6,7 +6,7 @@ namespace AiTrading.Application.Tests;
 public sealed class PaperTradingSessionExecutionConcurrencyTests
 {
     [Fact]
-    public async Task Concurrent_Identical_Events_Preserve_Deterministic_Paper_Idempotency()
+    public async Task Concurrent_Identical_Events_Preserve_Deterministic_Paper_Identity()
     {
         var session = new PaperTradingSessionState(
             Guid.NewGuid(),
@@ -14,7 +14,7 @@ public sealed class PaperTradingSessionExecutionConcurrencyTests
             PaperTradingSessionStatus.Running,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow);
-        var paperTrades = new BlockingIdempotentPaperTradeService();
+        var paperTrades = new BlockingPaperTradeService();
         var service = new PaperTradingSessionExecutionService(new StubSessionService(session), paperTrades);
         var request = new PaperTradingEventRequest(session.Id, session.Configuration.Symbols[0], 1, "concurrent-event");
 
@@ -41,7 +41,7 @@ public sealed class PaperTradingSessionExecutionConcurrencyTests
         public Task<PaperTradingSessionState?> TransitionAsync(Guid id, PaperTradingSessionStatus target, CancellationToken ct) => Task.FromResult<PaperTradingSessionState?>(session with { Status = target });
     }
 
-    private sealed class BlockingIdempotentPaperTradeService : IPaperTradeService
+    private sealed class BlockingPaperTradeService : IPaperTradeService
     {
         public TaskCompletionSource<bool> FirstExecutionStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Guid DeterministicOrderId { get; private set; }
