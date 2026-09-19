@@ -123,7 +123,7 @@ public sealed class PaperTradingSessionExecutionTests
         Assert.Equal(first.Risk.Reason, replay.Risk.Reason);
         Assert.NotNull(replay.Fill);
         Assert.Equal(first.Fill!.Quantity, replay.Fill.Quantity);
-        Assert.Equal(first.Fill.Price, replay.Fill.Price);
+        Assert.Equal(first.Fill!.FillPrice, replay.Fill.FillPrice);
         Assert.Equal("PAPER_ONLY", replay.ExecutionMode);
     }
 
