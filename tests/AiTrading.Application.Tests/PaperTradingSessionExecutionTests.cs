@@ -102,10 +102,10 @@ public sealed class PaperTradingSessionExecutionTests
     }
 
     [Fact]
-    public async Task Persisted_Event_Replay_Does_Not_Execute_Paper_Order_Again()
+    public async Task Persisted_Event_Replay_Does_Not_Execute_Paper_Order_Again_And_Returns_Persisted_Fill()
     {
         var session = CreateSession(PaperTradingSessionStatus.Running);
-        var paperTrades = new CapturingPaperTradeService(new RiskResult(RiskDecision.RiskBlocked, "persisted-risk"), null);
+        var paperTrades = new CapturingPaperTradeService();
         var audit = new InMemoryEventAuditRepository();
         var service = new PaperTradingSessionExecutionService(
             new StubSessionService(session),
@@ -121,7 +121,9 @@ public sealed class PaperTradingSessionExecutionTests
         Assert.Equal(1, paperTrades.CallCount);
         Assert.Equal(first.Risk.Decision, replay.Risk.Decision);
         Assert.Equal(first.Risk.Reason, replay.Risk.Reason);
-        Assert.Null(replay.Fill);
+        Assert.NotNull(replay.Fill);
+        Assert.Equal(first.Fill!.Quantity, replay.Fill.Quantity);
+        Assert.Equal(first.Fill.Price, replay.Fill.Price);
         Assert.Equal("PAPER_ONLY", replay.ExecutionMode);
     }
 
@@ -184,7 +186,7 @@ public sealed class PaperTradingSessionExecutionTests
     private sealed class FakeUnitOfWork(InMemoryEventAuditRepository audit) : ITradingUnitOfWork
     {
         public IPortfolioRepository Portfolios => throw new NotSupportedException();
-        public IOrderRepository Orders => new NoOpOrderRepository();
+        public IOrderRepository Orders => new ReplayOrderRepository();
         public IDurableShortPositionRepository DurableShortPositions => throw new NotSupportedException();
         public IPaperTradingEventAuditRepository PaperTradingEventAudits => audit;
         public IAlertRepository Alerts => throw new NotSupportedException();
@@ -196,14 +198,14 @@ public sealed class PaperTradingSessionExecutionTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class NoOpOrderRepository : IOrderRepository
+    private sealed class ReplayOrderRepository : IOrderRepository
     {
         public Task<OrderState?> GetAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult<OrderState?>(null);
         public Task<OrderState?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken) => Task.FromResult<OrderState?>(null);
         public Task<IReadOnlyList<OrderState>> GetByIdempotencyPrefixAsync(string prefix, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<OrderState>>([]);
         public Task<IReadOnlyList<FillState>> GetFillsByOrderIdsAsync(IReadOnlyList<Guid> orderIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FillState>>([]);
         public Task AddAsync(OrderState order, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult<FillState?>(null);
+        public Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult<FillState?>(new FillState(Guid.NewGuid(), orderId, new Symbol("TCS", "123"), OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper-test"));
         public Task AddFillAsync(FillState fill, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
