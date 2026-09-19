@@ -105,7 +105,7 @@ public sealed class PaperTradingSessionExecutionTests
     public async Task Persisted_Event_Replay_Does_Not_Execute_Paper_Order_Again()
     {
         var session = CreateSession(PaperTradingSessionStatus.Running);
-        var paperTrades = new CapturingPaperTradeService();
+        var paperTrades = new CapturingPaperTradeService(new RiskResult(RiskDecision.RiskBlocked, "persisted-risk"), null);
         var audit = new InMemoryEventAuditRepository();
         var service = new PaperTradingSessionExecutionService(
             new StubSessionService(session),
@@ -184,7 +184,7 @@ public sealed class PaperTradingSessionExecutionTests
     private sealed class FakeUnitOfWork(InMemoryEventAuditRepository audit) : ITradingUnitOfWork
     {
         public IPortfolioRepository Portfolios => throw new NotSupportedException();
-        public IOrderRepository Orders => throw new NotSupportedException();
+        public IOrderRepository Orders => new NoOpOrderRepository();
         public IDurableShortPositionRepository DurableShortPositions => throw new NotSupportedException();
         public IPaperTradingEventAuditRepository PaperTradingEventAudits => audit;
         public IAlertRepository Alerts => throw new NotSupportedException();
@@ -194,5 +194,16 @@ public sealed class PaperTradingSessionExecutionTests
         public IBacktestAuditRepository BacktestAudit => throw new NotSupportedException();
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class NoOpOrderRepository : IOrderRepository
+    {
+        public Task<OrderState?> GetAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult<OrderState?>(null);
+        public Task<OrderState?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken) => Task.FromResult<OrderState?>(null);
+        public Task<IReadOnlyList<OrderState>> GetByIdempotencyPrefixAsync(string prefix, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<OrderState>>([]);
+        public Task<IReadOnlyList<FillState>> GetFillsByOrderIdsAsync(IReadOnlyList<Guid> orderIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FillState>>([]);
+        public Task AddAsync(OrderState order, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult<FillState?>(null);
+        public Task AddFillAsync(FillState fill, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
