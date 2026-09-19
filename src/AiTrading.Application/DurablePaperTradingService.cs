@@ -22,9 +22,10 @@ public sealed class DurablePaperTradingService(
             throw new InvalidOperationException("Starting cash must be positive.");
 
         var completion = new TaskCompletionSource<InFlightExecution>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!InFlight.TryAdd(idempotencyKey, completion))
+        var registered = InFlight.GetOrAdd(idempotencyKey, completion);
+        if (!ReferenceEquals(registered, completion))
         {
-            var shared = await InFlight[idempotencyKey].Task.WaitAsync(cancellationToken);
+            var shared = await registered.Task.WaitAsync(cancellationToken);
             if (shared.OrderId != orderId)
                 throw new InvalidOperationException("The idempotency key is already associated with a different order.");
             return (shared.Risk, shared.Fill);
@@ -43,8 +44,7 @@ public sealed class DurablePaperTradingService(
         }
         finally
         {
-            if (InFlight.TryGetValue(idempotencyKey, out var current) && ReferenceEquals(current, completion))
-                InFlight.TryRemove(idempotencyKey, out _);
+            InFlight.TryRemove(new KeyValuePair<string, TaskCompletionSource<InFlightExecution>>(idempotencyKey, completion));
         }
     }
 
