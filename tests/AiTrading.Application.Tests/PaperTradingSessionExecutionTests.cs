@@ -199,6 +199,29 @@ public sealed class PaperTradingSessionExecutionTests
     }
 
     [Fact]
+    public async Task Persisted_Replay_With_NonPositive_Fill_Price_Fails_Closed()
+    {
+        var session = CreateSession(PaperTradingSessionStatus.Running);
+        var orderId = Guid.NewGuid();
+        var audit = new InMemoryEventAuditRepository();
+        await audit.AddAsync(new PaperTradingEventAuditState(
+            Guid.NewGuid(), session.Id, "evt-invalid-price", orderId, session.Configuration.Symbols[0], 1,
+            RiskDecision.Approved.ToString(), "approved", 0m, DateTimeOffset.UtcNow), CancellationToken.None);
+        var persistedFill = new FillState(
+            orderId, orderId, session.Configuration.Symbols[0], OrderSide.Buy, 1, 0m,
+            DateTimeOffset.UtcNow, "paper-test");
+        var paperTrades = new CapturingPaperTradeService();
+        var service = new PaperTradingSessionExecutionService(
+            new StubSessionService(session), paperTrades, new FakeUnitOfWorkFactory(audit, persistedFill));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
+            new PaperTradingEventRequest(session.Id, session.Configuration.Symbols[0], 1, "evt-invalid-price"), CancellationToken.None));
+
+        Assert.Equal("Persisted paper event audit fill has an invalid price; execution state requires reconciliation.", error.Message);
+        Assert.Equal(0, paperTrades.CallCount);
+    }
+
+    [Fact]
     public async Task Persisted_Approved_Event_Without_Fill_Fails_Closed()
     {
         var session = CreateSession(PaperTradingSessionStatus.Running);
