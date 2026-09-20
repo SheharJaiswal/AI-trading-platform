@@ -48,6 +48,26 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
     }
 
     [Fact]
+    public async Task Existing_Order_With_Different_Idempotency_Key_Fails_Closed()
+    {
+        var portfolioId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(portfolioId);
+        unitOfWork.OrdersStore.Seed(
+            new OrderState(orderId, "original-key", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", DateTimeOffset.UtcNow, "filled"),
+            new FillState(orderId, orderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper"));
+        var execution = new BlockingExecution();
+        var service = CreateService(unitOfWork, execution);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+            portfolioId, orderId, "different-key", symbol, 1, CancellationToken.None));
+
+        Assert.Equal($"Order {orderId} is already associated with a different idempotency key; execution state requires reconciliation.", error.Message);
+        Assert.Equal(0, execution.CallCount);
+    }
+
+    [Fact]
     public async Task Persisted_Idempotent_Replay_With_NonPositive_Fill_Price_Fails_Closed()
     {
         var portfolioId = Guid.NewGuid();
