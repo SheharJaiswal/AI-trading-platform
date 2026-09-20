@@ -52,6 +52,106 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
     }
 
     [Fact]
+    public async Task MySql_Persisted_Session_With_Invalid_Status_Fails_Closed()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var id = Guid.NewGuid();
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        db.Set<PaperTradingSessionRecord>().Add(new PaperTradingSessionRecord
+        {
+            Id = id,
+            SymbolsJson = "[{\"Value\":\"TCS\",\"InstrumentToken\":\"11536\"}]",
+            Interval = "15m",
+            StrategyVersion = "v5-deterministic",
+            StartingCash = 250_000m,
+            Status = "Corrupted",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new EfPaperTradingSessionRepository(db);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => repository.GetAsync(id, CancellationToken.None));
+
+        Assert.Contains("invalid persisted status", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MySql_Persisted_Session_With_Invalid_Symbol_Json_Fails_Closed()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var id = Guid.NewGuid();
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        db.Set<PaperTradingSessionRecord>().Add(new PaperTradingSessionRecord
+        {
+            Id = id,
+            SymbolsJson = "not-json",
+            Interval = "15m",
+            StrategyVersion = "v5-deterministic",
+            StartingCash = 250_000m,
+            Status = "Draft",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new EfPaperTradingSessionRepository(db);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => repository.GetAsync(id, CancellationToken.None));
+
+        Assert.Contains("invalid persisted symbol data", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MySql_Persisted_Session_With_Invalid_Timestamps_Fails_Closed()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var id = Guid.NewGuid();
+        var created = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        db.Set<PaperTradingSessionRecord>().Add(new PaperTradingSessionRecord
+        {
+            Id = id,
+            SymbolsJson = "[{\"Value\":\"TCS\",\"InstrumentToken\":\"11536\"}]",
+            Interval = "15m",
+            StrategyVersion = "v5-deterministic",
+            StartingCash = 250_000m,
+            Status = "Draft",
+            CreatedAt = created,
+            UpdatedAt = created.AddSeconds(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new EfPaperTradingSessionRepository(db);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => repository.GetAsync(id, CancellationToken.None));
+
+        Assert.Contains("invalid persisted timestamps", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MySql_Persisted_Session_With_Invalid_Configuration_Fails_Closed()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var id = Guid.NewGuid();
+        var now = TruncateToMySqlMicroseconds(DateTimeOffset.UtcNow);
+        db.Set<PaperTradingSessionRecord>().Add(new PaperTradingSessionRecord
+        {
+            Id = id,
+            SymbolsJson = "[]",
+            Interval = "15m",
+            StrategyVersion = "v5-deterministic",
+            StartingCash = 0m,
+            Status = "Draft",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new EfPaperTradingSessionRepository(db);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => repository.GetAsync(id, CancellationToken.None));
+
+        Assert.Contains("invalid persisted symbols", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task MySql_Enforces_Unique_Session_Event_Idempotency_Key()
     {
         await using var db = await CreateMigratedContextAsync();
@@ -73,31 +173,15 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
         });
         db.PaperTradingEventAudits.Add(new PaperTradingEventAuditRecord
         {
-            Id = Guid.NewGuid(),
-            SessionId = sessionId,
-            EventId = eventId,
-            OrderId = orderId,
-            Symbol = "TCS",
-            Quantity = 1,
-            RiskDecision = "Approved",
-            RiskReason = "integration",
-            FillPrice = 100m,
-            CreatedAt = now
+            Id = Guid.NewGuid(), SessionId = sessionId, EventId = eventId, OrderId = orderId, Symbol = "TCS",
+            Quantity = 1, RiskDecision = "Approved", RiskReason = "integration", FillPrice = 100m, CreatedAt = now
         });
         await db.SaveChangesAsync();
 
         db.PaperTradingEventAudits.Add(new PaperTradingEventAuditRecord
         {
-            Id = Guid.NewGuid(),
-            SessionId = sessionId,
-            EventId = eventId,
-            OrderId = Guid.NewGuid(),
-            Symbol = "TCS",
-            Quantity = 1,
-            RiskDecision = "Approved",
-            RiskReason = "duplicate",
-            FillPrice = 100m,
-            CreatedAt = now.AddSeconds(1)
+            Id = Guid.NewGuid(), SessionId = sessionId, EventId = eventId, OrderId = Guid.NewGuid(), Symbol = "TCS",
+            Quantity = 1, RiskDecision = "Approved", RiskReason = "duplicate", FillPrice = 100m, CreatedAt = now.AddSeconds(1)
         });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
@@ -123,7 +207,6 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
             await unitOfWork.PaperTradingEventAudits.AddAsync(new PaperTradingEventAuditState(
                 Guid.NewGuid(), sessionId, eventId, Guid.NewGuid(), new Symbol("TCS"), 1, "Approved", "duplicate", 100m, now.AddSeconds(1)),
                 CancellationToken.None);
-
             await unitOfWork.CommitAsync(CancellationToken.None);
         }
 
@@ -193,16 +276,8 @@ public sealed class PaperTradingSessionPersistenceIntegrationTests
         var repository = new EfPaperTradingEventAuditRepository(db);
 
         db.PaperTradingEventAudits.AddRange(
-            new PaperTradingEventAuditRecord
-            {
-                Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-b", OrderId = Guid.NewGuid(), Symbol = "TCS",
-                Quantity = 1, RiskDecision = "Approved", RiskReason = "", FillPrice = 100m, CreatedAt = now
-            },
-            new PaperTradingEventAuditRecord
-            {
-                Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-a", OrderId = Guid.NewGuid(), Symbol = "TCS",
-                Quantity = 1, RiskDecision = "RiskBlocked", RiskReason = "test", FillPrice = null, CreatedAt = now
-            });
+            new PaperTradingEventAuditRecord { Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-b", OrderId = Guid.NewGuid(), Symbol = "TCS", Quantity = 1, RiskDecision = "Approved", RiskReason = "", FillPrice = 100m, CreatedAt = now },
+            new PaperTradingEventAuditRecord { Id = Guid.NewGuid(), SessionId = sessionId, EventId = "evt-a", OrderId = Guid.NewGuid(), Symbol = "TCS", Quantity = 1, RiskDecision = "RiskBlocked", RiskReason = "test", FillPrice = null, CreatedAt = now });
         await db.SaveChangesAsync();
 
         var events = await repository.GetBySessionAsync(sessionId, CancellationToken.None);
