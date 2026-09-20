@@ -15,65 +15,38 @@ public sealed class LiveExecutionSafetyControlsTests
         var decision = LiveExecutionSafetyGate.Evaluate(Safe());
 
         Assert.True(decision.Allowed);
+        Assert.Equal(LiveExecutionSafetyBlockReason.None, decision.BlockReason);
         Assert.Equal("Live execution safety controls are satisfied.", decision.Reason);
     }
 
-    [Fact]
-    public void Explicit_Enablement_Is_Required()
+    [Theory]
+    [InlineData(false, false, false, true, 0, LiveExecutionSafetyBlockReason.NotExplicitlyEnabled)]
+    [InlineData(true, true, false, true, 0, LiveExecutionSafetyBlockReason.OperatorDisabled)]
+    [InlineData(true, false, true, true, 0, LiveExecutionSafetyBlockReason.EmergencyStopActive)]
+    [InlineData(true, false, false, false, 0, LiveExecutionSafetyBlockReason.ProviderUnhealthy)]
+    [InlineData(true, false, false, true, 1, LiveExecutionSafetyBlockReason.UnresolvedReconciliation)]
+    [InlineData(true, false, false, true, -1, LiveExecutionSafetyBlockReason.InvalidReconciliationState)]
+    public void Safety_Block_Uses_Stable_Reason_Code(
+        bool explicitlyEnabled,
+        bool operatorDisabled,
+        bool emergencyStopActive,
+        bool providerHealthy,
+        int unresolvedReconciliationCount,
+        LiveExecutionSafetyBlockReason expectedReason)
     {
-        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { ExplicitlyEnabled = false });
+        var decision = LiveExecutionSafetyGate.Evaluate(new(
+            explicitlyEnabled,
+            operatorDisabled,
+            emergencyStopActive,
+            providerHealthy,
+            unresolvedReconciliationCount));
 
         Assert.False(decision.Allowed);
-        Assert.Contains("not explicitly enabled", decision.Reason);
+        Assert.Equal(expectedReason, decision.BlockReason);
     }
 
     [Fact]
-    public void Operator_Disable_Is_Fail_Closed()
-    {
-        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { OperatorDisabled = true });
-
-        Assert.False(decision.Allowed);
-        Assert.Contains("operator-disabled", decision.Reason);
-    }
-
-    [Fact]
-    public void Emergency_Stop_Is_Fail_Closed()
-    {
-        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { EmergencyStopActive = true });
-
-        Assert.False(decision.Allowed);
-        Assert.Contains("emergency stop", decision.Reason);
-    }
-
-    [Fact]
-    public void Provider_Health_Is_Required()
-    {
-        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { ProviderHealthy = false });
-
-        Assert.False(decision.Allowed);
-        Assert.Contains("not healthy", decision.Reason);
-    }
-
-    [Fact]
-    public void Any_Unresolved_Reconciliation_Blocks_Live_Execution()
-    {
-        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { UnresolvedReconciliationCount = 1 });
-
-        Assert.False(decision.Allowed);
-        Assert.Contains("unresolved reconciliation", decision.Reason);
-    }
-
-    [Fact]
-    public void Invalid_Reconciliation_Count_Is_Fail_Closed()
-    {
-        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { UnresolvedReconciliationCount = -1 });
-
-        Assert.False(decision.Allowed);
-        Assert.Contains("reconciliation state is invalid", decision.Reason);
-    }
-
-    [Fact]
-    public void Multiple_Safety_Failures_Remain_Fail_Closed()
+    public void Multiple_Safety_Failures_Use_First_Fail_Closed_Reason()
     {
         var decision = LiveExecutionSafetyGate.Evaluate(Safe() with
         {
@@ -85,6 +58,7 @@ public sealed class LiveExecutionSafetyControlsTests
         });
 
         Assert.False(decision.Allowed);
+        Assert.Equal(LiveExecutionSafetyBlockReason.NotExplicitlyEnabled, decision.BlockReason);
         Assert.Contains("not explicitly enabled", decision.Reason);
     }
 }

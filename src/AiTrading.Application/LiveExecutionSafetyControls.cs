@@ -1,5 +1,16 @@
 namespace AiTrading.Application;
 
+public enum LiveExecutionSafetyBlockReason
+{
+    None,
+    InvalidReconciliationState,
+    NotExplicitlyEnabled,
+    OperatorDisabled,
+    EmergencyStopActive,
+    ProviderUnhealthy,
+    UnresolvedReconciliation
+}
+
 public sealed record LiveExecutionSafetyState(
     bool ExplicitlyEnabled,
     bool OperatorDisabled,
@@ -9,6 +20,7 @@ public sealed record LiveExecutionSafetyState(
 
 public sealed record LiveExecutionSafetyDecision(
     bool Allowed,
+    LiveExecutionSafetyBlockReason BlockReason,
     string Reason);
 
 public static class LiveExecutionSafetyGate
@@ -18,18 +30,21 @@ public static class LiveExecutionSafetyGate
         ArgumentNullException.ThrowIfNull(state);
 
         if (state.UnresolvedReconciliationCount < 0)
-            return new(false, "Live execution reconciliation state is invalid.");
+            return Block(LiveExecutionSafetyBlockReason.InvalidReconciliationState, "Live execution reconciliation state is invalid.");
         if (!state.ExplicitlyEnabled)
-            return new(false, "Live execution is not explicitly enabled.");
+            return Block(LiveExecutionSafetyBlockReason.NotExplicitlyEnabled, "Live execution is not explicitly enabled.");
         if (state.OperatorDisabled)
-            return new(false, "Live execution is operator-disabled.");
+            return Block(LiveExecutionSafetyBlockReason.OperatorDisabled, "Live execution is operator-disabled.");
         if (state.EmergencyStopActive)
-            return new(false, "Live execution emergency stop is active.");
+            return Block(LiveExecutionSafetyBlockReason.EmergencyStopActive, "Live execution emergency stop is active.");
         if (!state.ProviderHealthy)
-            return new(false, "Live execution provider is not healthy.");
+            return Block(LiveExecutionSafetyBlockReason.ProviderUnhealthy, "Live execution provider is not healthy.");
         if (state.UnresolvedReconciliationCount > 0)
-            return new(false, "Live execution has unresolved reconciliation state.");
+            return Block(LiveExecutionSafetyBlockReason.UnresolvedReconciliation, "Live execution has unresolved reconciliation state.");
 
-        return new(true, "Live execution safety controls are satisfied.");
+        return new(true, LiveExecutionSafetyBlockReason.None, "Live execution safety controls are satisfied.");
     }
+
+    private static LiveExecutionSafetyDecision Block(LiveExecutionSafetyBlockReason reason, string message) =>
+        new(false, reason, message);
 }
