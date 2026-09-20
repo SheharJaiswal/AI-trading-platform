@@ -108,6 +108,27 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
     }
 
     [Fact]
+    public async Task Persisted_Idempotent_Replay_With_Fill_Before_Order_Creation_Fails_Closed()
+    {
+        var portfolioId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TCS", "123");
+        var createdAt = DateTimeOffset.UtcNow;
+        var unitOfWork = new FakeUnitOfWork(portfolioId);
+        unitOfWork.OrdersStore.Seed(
+            new OrderState(orderId, "persisted-early-fill", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", createdAt, "paper", "filled"),
+            new FillState(orderId, orderId, symbol, OrderSide.Buy, 1, 100m, createdAt.AddTicks(-1), "paper"));
+        var execution = new BlockingExecution();
+        var service = CreateService(unitOfWork, execution);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+            portfolioId, orderId, "persisted-early-fill", symbol, 1, CancellationToken.None));
+
+        Assert.Equal($"Order {orderId} has a paper fill timestamp earlier than order creation; execution state requires reconciliation.", error.Message);
+        Assert.Equal(0, execution.CallCount);
+    }
+
+    [Fact]
     public async Task Persisted_Idempotent_Replay_With_NonFilled_Order_Status_Fails_Closed()
     {
         var portfolioId = Guid.NewGuid();
