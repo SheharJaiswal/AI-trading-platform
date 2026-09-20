@@ -33,6 +33,20 @@ public sealed class LiveOrderReconciliationContractTests
     }
 
     [Fact]
+    public void Matching_State_Produces_NonReconciliation_Decision()
+    {
+        var broker = Broker();
+        var decision = LiveOrderReconciliationContract.Decide(Local(), broker);
+
+        Assert.Equal(LiveOrderReconciliationOutcome.Matched, decision.Outcome);
+        Assert.Equal(broker.Status, decision.BrokerStatus);
+        Assert.False(decision.ReconciliationRequired);
+        Assert.Null(decision.Reason);
+        Assert.Equal(broker.ProviderOrderId, decision.ProviderOrderId);
+        Assert.Equal(broker.ObservedAt, decision.ObservedAt);
+    }
+
+    [Fact]
     public void Mismatched_Idempotency_Is_Divergent()
     {
         var broker = Broker() with { IdempotencyKey = "different-key" };
@@ -41,11 +55,14 @@ public sealed class LiveOrderReconciliationContractTests
     }
 
     [Fact]
-    public void Mismatched_Provider_Order_Id_Is_Divergent()
+    public void Mismatched_Provider_Order_Id_Is_Divergent_With_Reason()
     {
         var broker = Broker() with { ProviderOrderId = "different-provider-order" };
-        Assert.Equal(LiveOrderReconciliationOutcome.Divergent,
-            LiveOrderReconciliationContract.Compare(Local(), broker));
+        var decision = LiveOrderReconciliationContract.Decide(Local(), broker);
+
+        Assert.Equal(LiveOrderReconciliationOutcome.Divergent, decision.Outcome);
+        Assert.True(decision.ReconciliationRequired);
+        Assert.Contains("Provider order identity", decision.Reason);
     }
 
     [Fact]
@@ -56,17 +73,26 @@ public sealed class LiveOrderReconciliationContractTests
     }
 
     [Fact]
-    public void Unknown_Local_State_Is_Unresolved()
+    public void Unknown_Local_State_Is_Unresolved_And_Reconciliation_Required()
     {
-        Assert.Equal(LiveOrderReconciliationOutcome.Unresolved,
-            LiveOrderReconciliationContract.Compare(Local(LiveOrderStatus.Unknown), Broker()));
+        var broker = Broker();
+        var decision = LiveOrderReconciliationContract.Decide(Local(LiveOrderStatus.Unknown), broker);
+
+        Assert.Equal(LiveOrderReconciliationOutcome.Unresolved, decision.Outcome);
+        Assert.True(decision.ReconciliationRequired);
+        Assert.Equal(broker.ProviderOrderId, decision.ProviderOrderId);
+        Assert.Contains("Unknown execution state", decision.Reason);
     }
 
     [Fact]
-    public void Unknown_Broker_State_Is_Unresolved()
+    public void Unknown_Broker_State_Is_Unresolved_And_Reconciliation_Required()
     {
-        Assert.Equal(LiveOrderReconciliationOutcome.Unresolved,
-            LiveOrderReconciliationContract.Compare(Local(), Broker(LiveOrderStatus.Unknown)));
+        var broker = Broker(LiveOrderStatus.Unknown);
+        var decision = LiveOrderReconciliationContract.Decide(Local(), broker);
+
+        Assert.Equal(LiveOrderReconciliationOutcome.Unresolved, decision.Outcome);
+        Assert.True(decision.ReconciliationRequired);
+        Assert.Equal(broker.Status, decision.BrokerStatus);
     }
 
     [Fact]
