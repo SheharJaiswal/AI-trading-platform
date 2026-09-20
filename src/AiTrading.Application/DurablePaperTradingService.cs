@@ -11,7 +11,7 @@ public sealed class DurablePaperTradingService(
     ITradingUnitOfWorkFactory unitOfWorkFactory,
     decimal startingCash) : IPaperTradeService
 {
-    private sealed record InFlightExecution(Guid OrderId, RiskResult Risk, FillState? Fill);
+    private sealed record InFlightExecution(Guid OrderId, Symbol Symbol, int Quantity, RiskResult Risk, FillState? Fill);
     private static readonly ConcurrentDictionary<string, TaskCompletionSource<InFlightExecution>> InFlight = new(StringComparer.Ordinal);
 
     public async Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
@@ -29,13 +29,15 @@ public sealed class DurablePaperTradingService(
             var shared = await registered.Task.WaitAsync(cancellationToken);
             if (shared.OrderId != orderId)
                 throw new InvalidOperationException("The idempotency key is already associated with a different order.");
+            if (shared.Symbol != symbol || shared.Quantity != quantity)
+                throw new InvalidOperationException("The idempotency key is already associated with different order inputs.");
             return (shared.Risk, shared.Fill);
         }
 
         try
         {
             var result = await ExecuteCoreAsync(portfolioId, orderId, idempotencyKey, symbol, quantity, cancellationToken);
-            completion.TrySetResult(new InFlightExecution(orderId, result.Risk, result.Fill));
+            completion.TrySetResult(new InFlightExecution(orderId, symbol, quantity, result.Risk, result.Fill));
             return result;
         }
         catch (Exception ex)
@@ -57,6 +59,8 @@ public sealed class DurablePaperTradingService(
         {
             if (existingOrder.Id != orderId)
                 throw new InvalidOperationException("The idempotency key is already associated with a different order.");
+            if (existingOrder.Symbol != symbol || existingOrder.Quantity != quantity)
+                throw new InvalidOperationException("The idempotency key is already associated with different order inputs.");
             var existingFill = await unitOfWork.Orders.GetFillByOrderIdAsync(orderId, cancellationToken);
             if (existingFill is null)
                 throw new InvalidOperationException($"Order {orderId} exists without a fill; execution state requires reconciliation.");
