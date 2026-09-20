@@ -56,6 +56,10 @@ public sealed class DurablePaperTradingService(
     private async Task<(RiskResult Risk, FillState? Fill)> ExecuteCoreAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
     {
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
+        var orderWithSameId = await unitOfWork.Orders.GetAsync(orderId, cancellationToken);
+        if (orderWithSameId is not null && orderWithSameId.IdempotencyKey != idempotencyKey)
+            throw new InvalidOperationException($"Order {orderId} is already associated with a different idempotency key; execution state requires reconciliation.");
+
         var existingOrder = await unitOfWork.Orders.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
         if (existingOrder is not null)
         {
