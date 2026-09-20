@@ -47,6 +47,26 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         Assert.Equal(results[0].Fill, results[1].Fill);
     }
 
+    [Fact]
+    public async Task Persisted_Idempotent_Replay_With_NonPositive_Fill_Price_Fails_Closed()
+    {
+        var portfolioId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(portfolioId);
+        unitOfWork.OrdersStore.Seed(
+            new OrderState(orderId, "persisted-invalid-price", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", DateTimeOffset.UtcNow, "paper", "filled"),
+            new FillState(orderId, orderId, symbol, OrderSide.Buy, 1, 0m, DateTimeOffset.UtcNow, "paper"));
+        var execution = new BlockingExecution();
+        var service = CreateService(unitOfWork, execution);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+            portfolioId, orderId, "persisted-invalid-price", symbol, 1, CancellationToken.None));
+
+        Assert.Equal($"Order {orderId} has an invalid paper fill price; execution state requires reconciliation.", error.Message);
+        Assert.Equal(0, execution.CallCount);
+    }
+
     private static DurablePaperTradingService CreateService(FakeUnitOfWork unitOfWork, IPaperExecutionProvider execution) =>
         new(new RecommendationService(new FakeMarketData()), new RiskEngine(), execution, new FakeUnitOfWorkFactory(unitOfWork), 10_000m);
 
@@ -124,6 +144,7 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         public Task AddAsync(OrderState order, CancellationToken cancellationToken) { orders[order.Id] = (order, null); return Task.CompletedTask; }
         public Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult(orders.TryGetValue(orderId, out var value) ? value.Fill : null);
         public Task AddFillAsync(FillState fill, CancellationToken cancellationToken) { if (orders.TryGetValue(fill.OrderId, out var value)) orders[fill.OrderId] = (value.Order, fill); return Task.CompletedTask; }
+        public void Seed(OrderState order, FillState fill) => orders[order.Id] = (order, fill);
     }
 
     private sealed class NoOpDurableShortPositionRepository : IDurableShortPositionRepository
