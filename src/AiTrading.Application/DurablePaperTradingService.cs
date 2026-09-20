@@ -67,6 +67,8 @@ public sealed class DurablePaperTradingService(
                 throw new InvalidOperationException("The idempotency key is already associated with a different order.");
             if (existingOrder.Symbol != symbol || existingOrder.Quantity != quantity)
                 throw new InvalidOperationException("The idempotency key is already associated with different order inputs.");
+            if (!string.Equals(existingOrder.ExecutionMode, "paper", StringComparison.OrdinalIgnoreCase) || !string.Equals(existingOrder.Status, "filled", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Order {orderId} has an invalid persisted paper execution state; execution state requires reconciliation.");
             var existingFill = await unitOfWork.Orders.GetFillByOrderIdAsync(orderId, cancellationToken);
             if (existingFill is null)
                 throw new InvalidOperationException($"Order {orderId} exists without a fill; execution state requires reconciliation.");

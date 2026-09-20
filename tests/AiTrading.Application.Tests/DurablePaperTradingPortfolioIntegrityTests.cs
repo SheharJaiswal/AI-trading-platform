@@ -88,6 +88,46 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
     }
 
     [Fact]
+    public async Task Persisted_Idempotent_Replay_With_NonFilled_Order_Status_Fails_Closed()
+    {
+        var portfolioId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(portfolioId);
+        unitOfWork.OrdersStore.Seed(
+            new OrderState(orderId, "persisted-pending", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", DateTimeOffset.UtcNow, "paper", "pending"),
+            new FillState(orderId, orderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper"));
+        var execution = new BlockingExecution();
+        var service = CreateService(unitOfWork, execution);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+            portfolioId, orderId, "persisted-pending", symbol, 1, CancellationToken.None));
+
+        Assert.Equal($"Order {orderId} has an invalid persisted paper execution state; execution state requires reconciliation.", error.Message);
+        Assert.Equal(0, execution.CallCount);
+    }
+
+    [Fact]
+    public async Task Persisted_Idempotent_Replay_With_NonPaper_Execution_Mode_Fails_Closed()
+    {
+        var portfolioId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(portfolioId);
+        unitOfWork.OrdersStore.Seed(
+            new OrderState(orderId, "persisted-live", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", DateTimeOffset.UtcNow, "live", "filled"),
+            new FillState(orderId, orderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper"));
+        var execution = new BlockingExecution();
+        var service = CreateService(unitOfWork, execution);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+            portfolioId, orderId, "persisted-live", symbol, 1, CancellationToken.None));
+
+        Assert.Equal($"Order {orderId} has an invalid persisted paper execution state; execution state requires reconciliation.", error.Message);
+        Assert.Equal(0, execution.CallCount);
+    }
+
+    [Fact]
     public async Task Provider_Returning_NonPositive_Fill_Price_Fails_Before_Persistence()
     {
         var portfolioId = Guid.NewGuid();
