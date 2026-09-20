@@ -26,6 +26,7 @@ public sealed class EfPaperTradingSessionRepository(TradingDbContext db) : IPape
 
     public async Task AddAsync(PaperTradingSessionState session, CancellationToken ct)
     {
+        ValidateState(session);
         db.Set<PaperTradingSessionRecord>().Add(ToRecord(session));
         await db.SaveChangesAsync(ct);
     }
@@ -38,6 +39,7 @@ public sealed class EfPaperTradingSessionRepository(TradingDbContext db) : IPape
 
     public async Task UpdateAsync(PaperTradingSessionState session, CancellationToken ct)
     {
+        ValidateState(session);
         var record = await db.Set<PaperTradingSessionRecord>().SingleOrDefaultAsync(x => x.Id == session.Id, ct)
             ?? throw new InvalidOperationException($"Paper trading session {session.Id} does not exist.");
         record.Status = session.Status.ToString();
@@ -59,9 +61,60 @@ public sealed class EfPaperTradingSessionRepository(TradingDbContext db) : IPape
 
     private static PaperTradingSessionState FromRecord(PaperTradingSessionRecord r)
     {
-        var symbols = JsonSerializer.Deserialize<List<SymbolDto>>(r.SymbolsJson) ?? [];
+        if (r.Id == Guid.Empty)
+            throw new InvalidOperationException($"Paper trading session has an invalid id; session state requires reconciliation.");
+
+        if (r.CreatedAt == default || r.UpdatedAt < r.CreatedAt)
+            throw new InvalidOperationException($"Paper trading session {r.Id} has invalid persisted timestamps; session state requires reconciliation.");
+
+        if (!Enum.TryParse<PaperTradingSessionStatus>(r.Status, ignoreCase: true, out var status) || !Enum.IsDefined(status))
+            throw new InvalidOperationException($"Paper trading session {r.Id} has an invalid persisted status; session state requires reconciliation.");
+
+        List<SymbolDto> symbols;
+        try
+        {
+            symbols = JsonSerializer.Deserialize<List<SymbolDto>>(r.SymbolsJson) ?? [];
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException($"Paper trading session {r.Id} has invalid persisted symbol data; session state requires reconciliation.", exception);
+        }
+
+        if (symbols.Count == 0 || symbols.Any(x => string.IsNullOrWhiteSpace(x.Value)))
+            throw new InvalidOperationException($"Paper trading session {r.Id} has invalid persisted symbols; session state requires reconciliation.");
+
+        if (string.IsNullOrWhiteSpace(r.Interval) || string.IsNullOrWhiteSpace(r.StrategyVersion) || r.StartingCash <= 0)
+            throw new InvalidOperationException($"Paper trading session {r.Id} has invalid persisted configuration; session state requires reconciliation.");
+
         return new(r.Id,
             new PaperTradingSessionConfiguration(symbols.Select(x => new Symbol(x.Value, x.InstrumentToken)).ToArray(), r.Interval, r.StrategyVersion, r.StartingCash),
-            Enum.Parse<PaperTradingSessionStatus>(r.Status, true), r.CreatedAt, r.UpdatedAt);
+            status, r.CreatedAt, r.UpdatedAt);
+    }
+
+    private static void ValidateState(PaperTradingSessionState session)
+    {
+        if (session.Id == Guid.Empty)
+            throw new ArgumentException("Paper trading session id must not be empty.", nameof(session));
+
+        if (!Enum.IsDefined(session.Status))
+            throw new ArgumentException("Paper trading session status is invalid.", nameof(session));
+
+        if (session.CreatedAt == default || session.UpdatedAt < session.CreatedAt)
+            throw new ArgumentException("Paper trading session timestamps are invalid.", nameof(session));
+
+        if (session.Configuration is null || session.Configuration.Symbols is null || session.Configuration.Symbols.Count == 0)
+            throw new ArgumentException("Paper trading session requires at least one symbol.", nameof(session));
+
+        if (session.Configuration.Symbols.Any(x => string.IsNullOrWhiteSpace(x.Value)))
+            throw new ArgumentException("Paper trading session symbols must not be empty.", nameof(session));
+
+        if (string.IsNullOrWhiteSpace(session.Configuration.Interval))
+            throw new ArgumentException("Paper trading session interval is required.", nameof(session));
+
+        if (string.IsNullOrWhiteSpace(session.Configuration.StrategyVersion))
+            throw new ArgumentException("Paper trading session strategy version is required.", nameof(session));
+
+        if (session.Configuration.StartingCash <= 0)
+            throw new ArgumentException("Paper trading session starting cash must be positive.", nameof(session));
     }
 }
