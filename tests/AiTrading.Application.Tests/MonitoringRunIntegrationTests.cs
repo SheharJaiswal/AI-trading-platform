@@ -50,6 +50,50 @@ public sealed class MonitoringRunIntegrationTests
     }
 
     [Fact]
+    public async Task MonitoringRunRepository_Rejects_Completion_Of_Terminal_Run()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var existingCompletedAt = startedAt.AddMinutes(1);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = existingCompletedAt,
+            Status = MonitoringRunStatus.Completed.ToString(),
+            PositionCount = 2,
+            FailureCount = 0
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new EfMonitoringRunRepository(new TestDbContextFactory(new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options));
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            repository.CompleteAsync(
+                runId,
+                startedAt.AddMinutes(2),
+                MonitoringRunStatus.Failed,
+                2,
+                2,
+                CancellationToken.None));
+
+        Assert.Contains("no longer running", result.Message, StringComparison.OrdinalIgnoreCase);
+
+        await using var verify = new TradingDbContext(new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(ConnectionString!, ServerVersion.Parse("8.0.0-mysql"))
+            .Options);
+        var record = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == runId);
+        Assert.Equal(MonitoringRunStatus.Completed.ToString(), record.Status);
+        Assert.NotNull(record.CompletedAt);
+        Assert.True(Math.Abs((record.CompletedAt!.Value - existingCompletedAt).TotalMilliseconds) < 0.001);
+        Assert.Equal(2, record.PositionCount);
+        Assert.Equal(0, record.FailureCount);
+    }
+
+    [Fact]
     public async Task MonitoringRunService_Returns_Persisted_Run_By_Id()
     {
         await using var db = await CreateMigratedContextAsync();
