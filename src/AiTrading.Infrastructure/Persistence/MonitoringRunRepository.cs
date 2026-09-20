@@ -28,18 +28,25 @@ public sealed class EfMonitoringRunRepository(IDbContextFactory<TradingDbContext
         ValidateCompletion(completed);
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var record = await db.Set<MonitoringRunRecord>().SingleAsync(x => x.Id == id, cancellationToken);
+        var record = await db.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == id, cancellationToken);
         if (record.StartedAt == default)
             throw new InvalidOperationException($"Monitoring run {id} has an invalid persisted start timestamp; monitoring state requires reconciliation.");
 
         if (completedAt < record.StartedAt)
             throw new InvalidOperationException($"Monitoring run {id} has a completion timestamp earlier than its start timestamp; monitoring state requires reconciliation.");
 
-        record.CompletedAt = completedAt;
-        record.Status = status.ToString();
-        record.PositionCount = positionCount;
-        record.FailureCount = failureCount;
-        await db.SaveChangesAsync(cancellationToken);
+        var updated = await db.Set<MonitoringRunRecord>()
+            .Where(x => x.Id == id &&
+                        x.Status == MonitoringRunStatus.Running.ToString() &&
+                        x.CompletedAt == null)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.CompletedAt, completedAt)
+                .SetProperty(x => x.Status, status.ToString())
+                .SetProperty(x => x.PositionCount, positionCount)
+                .SetProperty(x => x.FailureCount, failureCount), cancellationToken);
+
+        if (updated != 1)
+            throw new InvalidOperationException($"Monitoring run {id} is no longer running; completion was rejected to preserve terminal state integrity.");
     }
 
     public async Task<int> RecoverStaleRunningAsync(DateTimeOffset startedBefore, DateTimeOffset recoveredAt, CancellationToken cancellationToken)
