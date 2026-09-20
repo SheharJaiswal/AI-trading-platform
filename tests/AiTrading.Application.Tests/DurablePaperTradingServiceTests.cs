@@ -60,6 +60,38 @@ public sealed class DurablePaperTradingServiceTests
     }
 
     [Fact]
+    public async Task Concurrent_Idempotency_Key_With_Different_Symbol_Is_Rejected()
+    {
+        var portfolioId = Guid.NewGuid(); var orderId = Guid.NewGuid(); var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, DateTimeOffset.UtcNow, 1));
+        var execution = new BlockingExecution(); var service = CreateService(unitOfWork, execution);
+        var first = Task.Run(() => service.ExecuteAsync(portfolioId, orderId, "shared-symbol", symbol, 1, CancellationToken.None));
+        await execution.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = service.ExecuteAsync(portfolioId, orderId, "shared-symbol", new Symbol("INFY", "456"), 1, CancellationToken.None);
+        execution.Release.TrySetResult(true);
+        await first;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await second);
+        Assert.Equal("The idempotency key is already associated with different order inputs.", error.Message);
+        Assert.Equal(1, execution.CallCount);
+    }
+
+    [Fact]
+    public async Task Concurrent_Idempotency_Key_With_Different_Quantity_Is_Rejected()
+    {
+        var portfolioId = Guid.NewGuid(); var orderId = Guid.NewGuid(); var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, DateTimeOffset.UtcNow, 1));
+        var execution = new BlockingExecution(); var service = CreateService(unitOfWork, execution);
+        var first = Task.Run(() => service.ExecuteAsync(portfolioId, orderId, "shared-quantity", symbol, 1, CancellationToken.None));
+        await execution.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = service.ExecuteAsync(portfolioId, orderId, "shared-quantity", symbol, 2, CancellationToken.None);
+        execution.Release.TrySetResult(true);
+        await first;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await second);
+        Assert.Equal("The idempotency key is already associated with different order inputs.", error.Message);
+        Assert.Equal(1, execution.CallCount);
+    }
+
+    [Fact]
     public async Task Existing_Order_Without_Fill_Is_Not_Silently_Approved()
     {
         var portfolioId = Guid.NewGuid(); var orderId = Guid.NewGuid(); var symbol = new Symbol("TCS", "123");
