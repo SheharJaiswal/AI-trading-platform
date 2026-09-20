@@ -17,6 +17,8 @@ public static class LiveExecutionSafetyGate
     {
         ArgumentNullException.ThrowIfNull(state);
 
+        if (state.UnresolvedReconciliationCount < 0)
+            return new(false, "Live execution reconciliation state is invalid.");
         if (!state.ExplicitlyEnabled)
             return new(false, "Live execution is not explicitly enabled.");
         if (state.OperatorDisabled)
