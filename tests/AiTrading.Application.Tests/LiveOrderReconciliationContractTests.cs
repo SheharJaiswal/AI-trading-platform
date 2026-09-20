@@ -66,6 +66,28 @@ public sealed class LiveOrderReconciliationContractTests
     }
 
     [Fact]
+    public void Missing_Broker_Provider_Order_Id_Is_Divergent()
+    {
+        var broker = Broker() with { ProviderOrderId = null };
+        var decision = LiveOrderReconciliationContract.Decide(Local(), broker);
+
+        Assert.Equal(LiveOrderReconciliationOutcome.Divergent, decision.Outcome);
+        Assert.True(decision.ReconciliationRequired);
+        Assert.Contains("Provider order identity", decision.Reason);
+    }
+
+    [Fact]
+    public void Missing_Local_Provider_Order_Id_Is_Divergent()
+    {
+        var local = Local() with { ProviderOrderId = null };
+        var decision = LiveOrderReconciliationContract.Decide(local, Broker());
+
+        Assert.Equal(LiveOrderReconciliationOutcome.Divergent, decision.Outcome);
+        Assert.True(decision.ReconciliationRequired);
+        Assert.Contains("Provider order identity", decision.Reason);
+    }
+
+    [Fact]
     public void Mismatched_Status_Is_Divergent()
     {
         Assert.Equal(LiveOrderReconciliationOutcome.Divergent,
