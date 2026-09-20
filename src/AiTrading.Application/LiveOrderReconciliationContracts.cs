@@ -57,8 +57,7 @@ public static class LiveOrderReconciliationContract
         if (!string.Equals(local.Provider, broker.Provider, StringComparison.OrdinalIgnoreCase))
             return Divergent(broker, "Execution provider differs between local and broker state.");
 
-        if (local.ProviderOrderId is not null && broker.ProviderOrderId is not null &&
-            !string.Equals(local.ProviderOrderId, broker.ProviderOrderId, StringComparison.Ordinal))
+        if (!string.Equals(local.ProviderOrderId, broker.ProviderOrderId, StringComparison.Ordinal))
             return Divergent(broker, "Provider order identity differs between local and broker state.");
 
         if (local.Status == LiveOrderStatus.Unknown || broker.Status == LiveOrderStatus.Unknown)
