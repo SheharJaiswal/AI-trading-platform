@@ -1,6 +1,4 @@
 using AiTrading.Domain;
-using FluentAssertions;
-
 namespace AiTrading.Application.Tests;
 
 public sealed class ExecutionProviderContractTests
@@ -23,8 +21,8 @@ public sealed class ExecutionProviderContractTests
 
         var action = () => ExecutionProviderContract.ValidateRequest(request);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*cannot submit execution requests*");
+        var exception = Assert.Throws<InvalidOperationException>(action);
+        Assert.Contains("cannot submit execution requests", exception.Message);
     }
 
     [Fact]
@@ -34,8 +32,8 @@ public sealed class ExecutionProviderContractTests
 
         var action = () => ExecutionProviderContract.ValidateRequest(request);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*explicit operator enablement*");
+        var exception = Assert.Throws<InvalidOperationException>(action);
+        Assert.Contains("explicit operator enablement", exception.Message);
     }
 
     [Fact]
@@ -46,7 +44,7 @@ public sealed class ExecutionProviderContractTests
         ExecutionProviderContract.ValidateRequest(request);
 
         ExecutionModePolicy.RequireExplicitLive(request.Context);
-        ExecutionModePolicy.CanReachProvider(request.Context, "live").Should().BeFalse();
+        Assert.False(ExecutionModePolicy.CanReachProvider(request.Context, "live"));
     }
 
     [Fact]
@@ -64,8 +62,8 @@ public sealed class ExecutionProviderContractTests
 
         var action = () => ExecutionProviderContract.ValidateResult(request, result);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*require reconciliation*");
+        var exception = Assert.Throws<InvalidOperationException>(action);
+        Assert.Contains("require reconciliation", exception.Message);
     }
 
     [Fact]
@@ -75,9 +73,9 @@ public sealed class ExecutionProviderContractTests
 
         var result = ExecutionProviderContract.CreateUnknown(request, "paper", "timeout");
 
-        result.Status.Should().Be(ExecutionProviderStatus.Unknown);
-        result.ReconciliationRequired.Should().BeTrue();
-        result.Fill.Should().BeNull();
+        Assert.Equal(ExecutionProviderStatus.Unknown, result.Status);
+        Assert.True(result.ReconciliationRequired);
+        Assert.Null(result.Fill);
     }
 
     [Fact]
@@ -95,7 +93,7 @@ public sealed class ExecutionProviderContractTests
 
         var action = () => ExecutionProviderContract.ValidateResult(request, result);
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*idempotency key*");
+        var exception = Assert.Throws<InvalidOperationException>(action);
+        Assert.Contains("idempotency key", exception.Message);
     }
 }
