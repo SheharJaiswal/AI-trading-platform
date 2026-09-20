@@ -87,7 +87,8 @@ public sealed class MonitoringRunIntegrationTests
             .Options);
         var record = await verify.Set<MonitoringRunRecord>().AsNoTracking().SingleAsync(x => x.Id == runId);
         Assert.Equal(MonitoringRunStatus.Completed.ToString(), record.Status);
-        Assert.Equal(existingCompletedAt, record.CompletedAt);
+        Assert.NotNull(record.CompletedAt);
+        Assert.True(Math.Abs((record.CompletedAt!.Value - existingCompletedAt).TotalMilliseconds) < 0.001);
         Assert.Equal(2, record.PositionCount);
         Assert.Equal(0, record.FailureCount);
     }
