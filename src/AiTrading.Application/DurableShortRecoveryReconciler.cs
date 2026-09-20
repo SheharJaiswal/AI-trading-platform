@@ -18,10 +18,14 @@ public static class DurableShortRecoveryReconciler
             return Fail("INVALID_ENTRY_PRICE");
         if (position.Version < 0)
             return Fail("INVALID_POSITION_VERSION");
+        if (position.UpdatedAt < position.CreatedAt)
+            return Fail("INVALID_POSITION_TIMESTAMP");
 
         var ordered = covers.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToArray();
         if (ordered.Any(x => x.PositionId != position.Id))
             return Fail("COVER_POSITION_MISMATCH");
+        if (ordered.Any(x => x.CreatedAt < position.CreatedAt))
+            return Fail("COVER_TIMESTAMP_BEFORE_POSITION");
         if (ordered.Any(x => string.IsNullOrWhiteSpace(x.IdempotencyKey)))
             return Fail("MISSING_IDEMPOTENCY_KEY");
         if (ordered.Select(x => x.IdempotencyKey).Distinct(StringComparer.Ordinal).Count() != ordered.Length)
