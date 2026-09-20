@@ -105,7 +105,7 @@ public sealed class DurablePaperTradingService(
 
         var order = new PaperOrder(orderId, symbol, OrderSide.Buy, quantity, recommendation.ReferencePrice, DateTimeOffset.UtcNow);
         var fill = await execution.ExecuteAsync(order, cancellationToken);
-        if (fill.OrderId != order.Id || fill.Symbol != order.Symbol || fill.Quantity != order.Quantity || fill.Side != order.Side || fill.Price <= 0)
+        if (fill.OrderId != order.Id || fill.Symbol != order.Symbol || fill.Quantity != order.Quantity || fill.Side != order.Side || fill.Price <= 0 || fill.Timestamp < order.CreatedAt)
             throw new InvalidOperationException($"Paper execution provider returned an inconsistent fill for order {orderId}; execution state requires reconciliation.");
         var nowFilled = DateTimeOffset.UtcNow;
         var orderState = new OrderState(order.Id, idempotencyKey, order.Symbol, order.Symbol.InstrumentToken, order.Side, order.Quantity, order.LimitPrice, recommendation.StrategyVersion, order.CreatedAt, "paper", "filled");
