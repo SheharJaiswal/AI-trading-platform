@@ -179,6 +179,24 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
     }
 
     [Fact]
+    public async Task Provider_Returning_Fill_Before_Order_Creation_Fails_Before_Persistence()
+    {
+        var portfolioId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TCS", "123");
+        var unitOfWork = new FakeUnitOfWork(portfolioId);
+        var execution = new InvalidFillExecution(new Fill(orderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow.AddMinutes(-1), "paper-test"));
+        var service = CreateService(unitOfWork, execution);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
+            portfolioId, orderId, "provider-invalid-timestamp", symbol, 1, CancellationToken.None));
+
+        Assert.Equal($"Paper execution provider returned an inconsistent fill for order {orderId}; execution state requires reconciliation.", error.Message);
+        Assert.Equal(1, execution.CallCount);
+        Assert.Null(await unitOfWork.OrdersStore.GetAsync(orderId, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Provider_Returning_NonPositive_Fill_Price_Fails_Before_Persistence()
     {
         var portfolioId = Guid.NewGuid();
