@@ -5,6 +5,8 @@ namespace AiTrading.Application;
 public enum ExecutionProviderStatus
 {
     Submitted,
+    PartiallyFilled,
+    Filled,
     Rejected,
     Unknown
 }
@@ -100,7 +102,7 @@ public static class ExecutionProviderContract
             throw new InvalidOperationException("Unknown execution outcomes require reconciliation.");
         if (result.Status == ExecutionProviderStatus.Rejected && result.Fill is not null)
             throw new InvalidOperationException("Rejected execution cannot contain a fill.");
-        if (result.Status == ExecutionProviderStatus.Submitted && result.Fill is null)
-            throw new InvalidOperationException("Submitted execution requires a confirmed fill in this contract.");
+        if (result.Status is ExecutionProviderStatus.PartiallyFilled or ExecutionProviderStatus.Filled && result.Fill is null)
+            throw new InvalidOperationException("Filled execution outcomes require a fill.");
     }
 }
