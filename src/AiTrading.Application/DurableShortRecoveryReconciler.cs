@@ -65,10 +65,18 @@ public static class DurableShortRecoveryReconciler
     {
         if (order.Side != OrderSide.Sell || !string.Equals(order.ExecutionMode, "paper", StringComparison.OrdinalIgnoreCase) || !string.Equals(order.Status, "short-open-filled", StringComparison.Ordinal))
             return Fail("INVALID_SHORT_ORDER");
+        if (order.CreatedAt == default)
+            return Fail("INVALID_SHORT_ORDER_TIMESTAMP");
         if (order.Id != fill.OrderId || fill.OrderId != position.Id)
             return Fail("EXECUTION_POSITION_ID_MISMATCH");
         if (fill.Side != OrderSide.Sell || fill.Quantity <= 0 || fill.FillPrice <= 0 || !string.Equals(fill.ExecutionProvider, "paper", StringComparison.OrdinalIgnoreCase))
             return Fail("INVALID_SHORT_FILL");
+        if (fill.Timestamp == default || fill.Timestamp < order.CreatedAt)
+            return Fail("INVALID_SHORT_FILL_TIMESTAMP");
+        if (position.UpdatedAt < position.CreatedAt)
+            return Fail("INVALID_SHORT_POSITION_TIMESTAMP");
+        if (position.CreatedAt < fill.Timestamp)
+            return Fail("POSITION_CREATED_BEFORE_FILL");
         if (order.Quantity != fill.Quantity || order.Symbol != fill.Symbol || position.Symbol != fill.Symbol)
             return Fail("EXECUTION_POSITION_DETAILS_MISMATCH");
         if (position.OriginalQuantity != fill.Quantity || position.RemainingQuantity != fill.Quantity || position.AverageEntryPrice != fill.FillPrice)
