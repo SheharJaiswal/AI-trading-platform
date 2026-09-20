@@ -73,6 +73,8 @@ public sealed class DurablePaperTradingService(
                 throw new InvalidOperationException($"Order {orderId} has an invalid persisted paper execution state; execution state requires reconciliation.");
             if (existingOrder.CreatedAt == default)
                 throw new InvalidOperationException($"Order {orderId} has an invalid persisted order timestamp; execution state requires reconciliation.");
+            if (existingOrder.Quantity <= 0)
+                throw new InvalidOperationException($"Order {orderId} has an invalid persisted paper quantity; execution state requires reconciliation.");
             if (existingOrder.LimitPrice <= 0)
                 throw new InvalidOperationException($"Order {orderId} has an invalid persisted paper limit price; execution state requires reconciliation.");
             var existingFill = await unitOfWork.Orders.GetFillByOrderIdAsync(orderId, cancellationToken);
