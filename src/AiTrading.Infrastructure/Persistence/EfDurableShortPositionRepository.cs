@@ -14,11 +14,11 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
     public async Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken ct)
     {
         if (positionId == Guid.Empty) throw new ArgumentException("Position id must not be empty.", nameof(positionId));
+        var position = await ReadPositionAsync(positionId, forUpdate: false, ct) ?? throw new InvalidOperationException($"Persisted paper short covers exist without short position {positionId}; state requires reconciliation.");
         await using var command = CreateCommand("SELECT Id, PositionId, IdempotencyKey, CoverPrice, CoverQuantity, RealizedPnl, ResultingPositionVersion, CreatedAt FROM paper_short_covers WHERE PositionId=@position ORDER BY CreatedAt, Id");
         Add(command, "@position", positionId.ToString());
         await EnsureOpenAsync(command.Connection!, ct);
         await using var reader = await command.ExecuteReaderAsync(ct);
-        var position = await ReadPositionAsync(positionId, forUpdate: false, ct) ?? throw new InvalidOperationException($"Persisted paper short covers exist without short position {positionId}; state requires reconciliation.");
         var covers = new List<DurableShortCoverState>();
         while (await reader.ReadAsync(ct))
         {
