@@ -14,6 +14,7 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
     public async Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken ct)
     {
         if (positionId == Guid.Empty) throw new ArgumentException("Position id must not be empty.", nameof(positionId));
+        var position = await ReadPositionAsync(positionId, forUpdate: false, ct) ?? throw new InvalidOperationException($"Persisted paper short covers exist without short position {positionId}; state requires reconciliation.");
         await using var command = CreateCommand("SELECT Id, PositionId, IdempotencyKey, CoverPrice, CoverQuantity, RealizedPnl, ResultingPositionVersion, CreatedAt FROM paper_short_covers WHERE PositionId=@position ORDER BY CreatedAt, Id");
         Add(command, "@position", positionId.ToString());
         await EnsureOpenAsync(command.Connection!, ct);
@@ -22,9 +23,18 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
         while (await reader.ReadAsync(ct))
         {
             var cover = new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7));
-            ValidateCoverState(cover, positionId);
+            ValidateCoverState(cover, position);
             covers.Add(cover);
         }
+        for (var index = 0; index < covers.Count; index++)
+        {
+            if (covers[index].ResultingPositionVersion != index + 1)
+                throw new InvalidOperationException($"Paper short position {positionId} has a non-contiguous cover version ledger; state requires reconciliation.");
+        }
+
+        if (covers.Count != position.Version)
+            throw new InvalidOperationException($"Paper short position {positionId} has a cover/version mismatch; state requires reconciliation.");
+
         return covers;
     }
 
@@ -43,7 +53,8 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
         if (coverQuantity <= 0) throw new ArgumentOutOfRangeException(nameof(coverQuantity), "Cover quantity must be positive.");
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var existing = await GetCoverAsync(positionId, idempotencyKey, ct);
+        var positionForValidation = await ReadPositionAsync(positionId, forUpdate: false, ct);
+        var existing = await GetCoverAsync(positionId, idempotencyKey, positionForValidation, ct);
         if (existing is not null)
         {
             if (existing.CoverPrice != coverPrice || existing.CoverQuantity != coverQuantity) throw new InvalidOperationException("Idempotency key is already associated with a different cover operation.");
@@ -84,11 +95,12 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
         Add(command, "@id", c.Id.ToString()); Add(command, "@position", c.PositionId.ToString()); Add(command, "@key", c.IdempotencyKey); Add(command, "@price", c.CoverPrice); Add(command, "@quantity", c.CoverQuantity); Add(command, "@pnl", c.RealizedPnl); Add(command, "@version", c.ResultingPositionVersion); Add(command, "@created", c.CreatedAt.UtcDateTime); await command.ExecuteNonQueryAsync(ct);
     }
 
-    private async Task<DurableShortCoverState?> GetCoverAsync(Guid positionId, string key, CancellationToken ct)
+    private async Task<DurableShortCoverState?> GetCoverAsync(Guid positionId, string key, DurableShortPositionState? position, CancellationToken ct)
     {
         await using var command = CreateCommand("SELECT Id, PositionId, IdempotencyKey, CoverPrice, CoverQuantity, RealizedPnl, ResultingPositionVersion, CreatedAt FROM paper_short_covers WHERE PositionId=@position AND IdempotencyKey=@key LIMIT 1"); Add(command, "@position", positionId.ToString()); Add(command, "@key", key); await EnsureOpenAsync(command.Connection!, ct); await using var reader = await command.ExecuteReaderAsync(ct); if (!await reader.ReadAsync(ct)) return null;
+        if (position is null) throw new InvalidOperationException($"Persisted paper short cover exists without short position {positionId}; state requires reconciliation.");
         var cover = new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7));
-        ValidateCoverState(cover, positionId);
+        ValidateCoverState(cover, position);
         return cover;
     }
 
@@ -118,12 +130,16 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
             throw new InvalidOperationException($"Paper short position {position.Id} has a cover price without a cover version; state requires reconciliation.");
     }
 
-    private static void ValidateCoverState(DurableShortCoverState cover, Guid positionId)
+    private static void ValidateCoverState(DurableShortCoverState cover, DurableShortPositionState position)
     {
-        if (cover.Id == Guid.Empty || cover.PositionId != positionId || string.IsNullOrWhiteSpace(cover.IdempotencyKey))
-            throw new InvalidOperationException($"Paper short cover for position {positionId} has an invalid identity; state requires reconciliation.");
+        if (cover.Id == Guid.Empty || cover.PositionId != position.Id || string.IsNullOrWhiteSpace(cover.IdempotencyKey))
+            throw new InvalidOperationException($"Paper short cover for position {position.Id} has an invalid identity; state requires reconciliation.");
         if (cover.IdempotencyKey.Length > 128 || cover.CoverPrice <= 0 || cover.CoverQuantity <= 0 || cover.ResultingPositionVersion <= 0 || cover.CreatedAt == default)
             throw new InvalidOperationException($"Paper short cover {cover.Id} has invalid persisted values; state requires reconciliation.");
+        if (cover.CreatedAt < position.CreatedAt)
+            throw new InvalidOperationException($"Paper short cover {cover.Id} predates its short position; state requires reconciliation.");
+        if (cover.RealizedPnl != PaperShortAccounting.RealizedPnl(position.AverageEntryPrice, cover.CoverPrice, cover.CoverQuantity))
+            throw new InvalidOperationException($"Paper short cover {cover.Id} has inconsistent realized P&L; state requires reconciliation.");
     }
 
     private DbCommand CreateCommand(string sql) { var command = db.Database.GetDbConnection().CreateCommand(); command.CommandText = sql; command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction(); return command; }
