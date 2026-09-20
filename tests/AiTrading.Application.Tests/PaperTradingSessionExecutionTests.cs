@@ -333,6 +333,7 @@ public sealed class PaperTradingSessionExecutionTests
         public IHistoricalCandleRepository HistoricalCandles => throw new NotSupportedException();
         public IBacktestRunRepository BacktestRuns => throw new NotSupportedException();
         public IBacktestAuditRepository BacktestAudit => throw new NotSupportedException();
+        public ILiveOrderStateRepository LiveOrders => throw new NotSupportedException();
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
