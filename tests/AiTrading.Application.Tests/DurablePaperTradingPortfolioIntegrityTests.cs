@@ -112,7 +112,7 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         var service = CreateService(unitOfWork, execution);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
-            portfolioId, orderId, "persisted-invalid-order-quantity", symbol, 0, CancellationToken.None));
+            portfolioId, orderId, "persisted-invalid-order-quantity", symbol, 1, CancellationToken.None));
 
         Assert.Equal($"Order {orderId} has an invalid persisted paper quantity; execution state requires reconciliation.", error.Message);
         Assert.Equal(0, execution.CallCount);
