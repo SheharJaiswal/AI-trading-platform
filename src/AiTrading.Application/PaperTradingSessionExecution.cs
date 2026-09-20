@@ -37,6 +37,8 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
                     throw new InvalidOperationException("Persisted paper event audit is approved but its paper fill is missing.");
                 if (decision != RiskDecision.Approved && existingFill is not null)
                     throw new InvalidOperationException("Persisted paper event audit is blocked but has a paper fill.");
+                if (existingFill is not null && existingFill.FillPrice <= 0)
+                    throw new InvalidOperationException("Persisted paper event audit fill has an invalid price; execution state requires reconciliation.");
                 if (existingFill is not null &&
                     (existingFill.OrderId != existing.OrderId || existingFill.Symbol != existing.Symbol || existingFill.Quantity != existing.Quantity ||
                      !existing.FillPrice.HasValue || existingFill.FillPrice != existing.FillPrice.Value))
