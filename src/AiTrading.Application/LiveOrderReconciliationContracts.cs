@@ -30,8 +30,6 @@ public static class LiveOrderReconciliationContract
         if (snapshot.AverageFillPrice is <= 0) throw new ArgumentException("Average fill price must be positive when provided.", nameof(snapshot));
         if (snapshot.FilledQuantity > 0 && snapshot.AverageFillPrice is null)
             throw new InvalidOperationException("A filled quantity requires an average fill price.");
-        if (snapshot.Status == LiveOrderStatus.Unknown)
-            throw new InvalidOperationException("Unknown broker state requires reconciliation.");
         if (snapshot.ObservedAt == default) throw new ArgumentException("ObservedAt is required.", nameof(snapshot));
     }
 
