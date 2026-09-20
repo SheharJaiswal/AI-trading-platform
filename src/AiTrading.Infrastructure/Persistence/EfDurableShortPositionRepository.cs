@@ -13,18 +13,24 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
 
     public async Task<IReadOnlyList<DurableShortCoverState>> GetCoversAsync(Guid positionId, CancellationToken ct)
     {
+        if (positionId == Guid.Empty) throw new ArgumentException("Position id must not be empty.", nameof(positionId));
         await using var command = CreateCommand("SELECT Id, PositionId, IdempotencyKey, CoverPrice, CoverQuantity, RealizedPnl, ResultingPositionVersion, CreatedAt FROM paper_short_covers WHERE PositionId=@position ORDER BY CreatedAt, Id");
         Add(command, "@position", positionId.ToString());
         await EnsureOpenAsync(command.Connection!, ct);
         await using var reader = await command.ExecuteReaderAsync(ct);
         var covers = new List<DurableShortCoverState>();
         while (await reader.ReadAsync(ct))
-            covers.Add(new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7)));
+        {
+            var cover = new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7));
+            ValidateCoverState(cover, positionId);
+            covers.Add(cover);
+        }
         return covers;
     }
 
     public async Task AddAsync(DurableShortPositionState position, CancellationToken ct)
     {
+        ValidatePositionState(position);
         await using var command = CreateCommand("INSERT INTO paper_short_positions (Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, StopLoss, TargetPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version) VALUES (@id,@portfolio,@symbol,@token,@original,@remaining,@entry,@stopLoss,@targetPrice,@lastCover,@pnl,@state,@created,@updated,@version)");
         Add(command, "@id", position.Id.ToString()); Add(command, "@portfolio", position.PortfolioId.ToString()); Add(command, "@symbol", position.Symbol.Value); Add(command, "@token", (object?)position.Symbol.InstrumentToken ?? DBNull.Value); Add(command, "@original", position.OriginalQuantity); Add(command, "@remaining", position.RemainingQuantity); Add(command, "@entry", position.AverageEntryPrice); Add(command, "@stopLoss", position.StopLoss is null ? DBNull.Value : position.StopLoss.Value); Add(command, "@targetPrice", position.TargetPrice is null ? DBNull.Value : position.TargetPrice.Value); Add(command, "@lastCover", position.LastCoverPrice is null ? DBNull.Value : position.LastCoverPrice.Value); Add(command, "@pnl", position.RealizedPnl); Add(command, "@state", position.State); Add(command, "@created", position.CreatedAt.UtcDateTime); Add(command, "@updated", position.UpdatedAt.UtcDateTime); Add(command, "@version", position.Version);
         await EnsureOpenAsync(command.Connection!, ct); await command.ExecuteNonQueryAsync(ct);
@@ -63,7 +69,7 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
     {
         await using var command = CreateCommand($"SELECT Id, PortfolioId, Symbol, InstrumentToken, OriginalQuantity, RemainingQuantity, AverageEntryPrice, StopLoss, TargetPrice, LastCoverPrice, RealizedPnl, State, CreatedAt, UpdatedAt, Version FROM paper_short_positions WHERE Id = @id LIMIT 1{(forUpdate ? " FOR UPDATE" : "")}");
         Add(command, "@id", positionId.ToString()); await EnsureOpenAsync(command.Connection!, ct);
-        await using var reader = await command.ExecuteReaderAsync(ct); if (!await reader.ReadAsync(ct)) return null; return ReadPosition(reader);
+        await using var reader = await command.ExecuteReaderAsync(ct); if (!await reader.ReadAsync(ct)) return null; var position = ReadPosition(reader); ValidatePositionState(position); return position;
     }
 
     private async Task<int> UpdatePositionAsync(DurableShortPositionState p, long expectedVersion, CancellationToken ct)
@@ -81,7 +87,43 @@ public sealed class EfDurableShortPositionRepository(TradingDbContext db) : IDur
     private async Task<DurableShortCoverState?> GetCoverAsync(Guid positionId, string key, CancellationToken ct)
     {
         await using var command = CreateCommand("SELECT Id, PositionId, IdempotencyKey, CoverPrice, CoverQuantity, RealizedPnl, ResultingPositionVersion, CreatedAt FROM paper_short_covers WHERE PositionId=@position AND IdempotencyKey=@key LIMIT 1"); Add(command, "@position", positionId.ToString()); Add(command, "@key", key); await EnsureOpenAsync(command.Connection!, ct); await using var reader = await command.ExecuteReaderAsync(ct); if (!await reader.ReadAsync(ct)) return null;
-        return new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7));
+        var cover = new DurableShortCoverState(ParseGuid(reader.GetValue(0)), ParseGuid(reader.GetValue(1)), reader.GetString(2), reader.GetDecimal(3), reader.GetInt32(4), reader.GetDecimal(5), reader.GetInt64(6), ReadDate(reader, 7));
+        ValidateCoverState(cover, positionId);
+        return cover;
+    }
+
+    private static void ValidatePositionState(DurableShortPositionState position)
+    {
+        if (position.Id == Guid.Empty || position.PortfolioId == Guid.Empty)
+            throw new InvalidOperationException("Persisted paper short position has an invalid identity; state requires reconciliation.");
+        if (string.IsNullOrWhiteSpace(position.Symbol.Value))
+            throw new InvalidOperationException($"Paper short position {position.Id} has an invalid symbol; state requires reconciliation.");
+        if (position.OriginalQuantity <= 0 || position.RemainingQuantity < 0 || position.RemainingQuantity > position.OriginalQuantity)
+            throw new InvalidOperationException($"Paper short position {position.Id} has invalid quantities; state requires reconciliation.");
+        if (position.AverageEntryPrice <= 0 || position.LastCoverPrice is <= 0 || position.Version < 0)
+            throw new InvalidOperationException($"Paper short position {position.Id} has invalid price or version state; state requires reconciliation.");
+        if ((position.StopLoss is null) != (position.TargetPrice is null))
+            throw new InvalidOperationException($"Paper short position {position.Id} has incomplete risk levels; state requires reconciliation.");
+        if (position.StopLoss is not null && !PaperShortRiskGate.Validate(position.OriginalQuantity, position.AverageEntryPrice, position.StopLoss.Value, position.TargetPrice!.Value).Approved)
+            throw new InvalidOperationException($"Paper short position {position.Id} has invalid risk levels; state requires reconciliation.");
+        if (position.CreatedAt == default || position.UpdatedAt < position.CreatedAt)
+            throw new InvalidOperationException($"Paper short position {position.Id} has invalid timestamps; state requires reconciliation.");
+
+        var expectedState = position.RemainingQuantity == 0
+            ? "SHORT_CLOSED"
+            : position.RemainingQuantity == position.OriginalQuantity ? "SHORT_OPEN" : "SHORT_PARTIALLY_COVERED";
+        if (!string.Equals(position.State, expectedState, StringComparison.Ordinal))
+            throw new InvalidOperationException($"Paper short position {position.Id} has inconsistent lifecycle state; state requires reconciliation.");
+        if (position.Version == 0 && position.LastCoverPrice is not null)
+            throw new InvalidOperationException($"Paper short position {position.Id} has a cover price without a cover version; state requires reconciliation.");
+    }
+
+    private static void ValidateCoverState(DurableShortCoverState cover, Guid positionId)
+    {
+        if (cover.Id == Guid.Empty || cover.PositionId != positionId || string.IsNullOrWhiteSpace(cover.IdempotencyKey))
+            throw new InvalidOperationException($"Paper short cover for position {positionId} has an invalid identity; state requires reconciliation.");
+        if (cover.IdempotencyKey.Length > 128 || cover.CoverPrice <= 0 || cover.CoverQuantity <= 0 || cover.ResultingPositionVersion <= 0 || cover.CreatedAt == default)
+            throw new InvalidOperationException($"Paper short cover {cover.Id} has invalid persisted values; state requires reconciliation.");
     }
 
     private DbCommand CreateCommand(string sql) { var command = db.Database.GetDbConnection().CreateCommand(); command.CommandText = sql; command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction(); return command; }
