@@ -390,9 +390,12 @@ public sealed class MonitoringRunIntegrationTests
 
     private static MonitoringRunService CreateRunService(TradingDbContext db)
     {
-        var options = db.Database.GetDbConnection().ConnectionString;
+        var connectionString = ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("AI_TRADING_MYSQL_CONNECTION must be configured for MySQL integration tests.");
+
         var dbOptions = new DbContextOptionsBuilder<TradingDbContext>()
-            .UseMySql(options, ServerVersion.Parse("8.0.0-mysql"))
+            .UseMySql(connectionString, ServerVersion.Parse("8.0.0-mysql"))
             .Options;
         return new MonitoringRunService(
             new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(dbOptions), Guid.NewGuid(), new NoopAlertDelivery()),
