@@ -11,9 +11,10 @@ public sealed class DurablePaperTradingServiceTests
         var portfolioId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
         var symbol = new Symbol("TCS", "123");
-        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper");
-        var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, DateTimeOffset.UtcNow, 1));
-        unitOfWork.OrdersStore.Add(new OrderState(orderId, "request-123", symbol, "123", OrderSide.Buy, 1, 100m, "baseline-v1", DateTimeOffset.UtcNow, "paper", "filled"), fill);
+        var createdAt = DateTimeOffset.UtcNow;
+        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Buy, 1, 100m, createdAt, "paper");
+        var unitOfWork = new FakeUnitOfWork(new PortfolioState(portfolioId, 10_000m, 0m, createdAt, 1));
+        unitOfWork.OrdersStore.Add(new OrderState(orderId, "request-123", symbol, "123", OrderSide.Buy, 1, 100m, "baseline-v1", createdAt, "paper", "filled"), fill);
         var execution = new CountingExecution();
         var service = CreateService(unitOfWork, execution);
         var result = await service.ExecuteAsync(portfolioId, orderId, "request-123", symbol, 1, CancellationToken.None);
