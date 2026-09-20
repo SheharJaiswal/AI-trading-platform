@@ -45,6 +45,10 @@ public static class LiveOrderReconciliationContract
             !string.Equals(local.Provider, broker.Provider, StringComparison.OrdinalIgnoreCase))
             return LiveOrderReconciliationOutcome.Divergent;
 
+        if (local.ProviderOrderId is not null && broker.ProviderOrderId is not null &&
+            !string.Equals(local.ProviderOrderId, broker.ProviderOrderId, StringComparison.Ordinal))
+            return LiveOrderReconciliationOutcome.Divergent;
+
         if (local.Status == LiveOrderStatus.Unknown || broker.Status == LiveOrderStatus.Unknown)
             return LiveOrderReconciliationOutcome.Unresolved;
 

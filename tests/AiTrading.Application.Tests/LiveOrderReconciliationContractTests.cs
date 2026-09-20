@@ -41,6 +41,14 @@ public sealed class LiveOrderReconciliationContractTests
     }
 
     [Fact]
+    public void Mismatched_Provider_Order_Id_Is_Divergent()
+    {
+        var broker = Broker() with { ProviderOrderId = "different-provider-order" };
+        Assert.Equal(LiveOrderReconciliationOutcome.Divergent,
+            LiveOrderReconciliationContract.Compare(Local(), broker));
+    }
+
+    [Fact]
     public void Mismatched_Status_Is_Divergent()
     {
         Assert.Equal(LiveOrderReconciliationOutcome.Divergent,
