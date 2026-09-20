@@ -80,6 +80,8 @@ public sealed class DurablePaperTradingService(
                 throw new InvalidOperationException($"Order {orderId} has an invalid paper fill price; execution state requires reconciliation.");
             if (existingFill.Timestamp == default)
                 throw new InvalidOperationException($"Order {orderId} has an invalid paper fill timestamp; execution state requires reconciliation.");
+            if (existingFill.Timestamp < existingOrder.CreatedAt)
+                throw new InvalidOperationException($"Order {orderId} has a paper fill timestamp earlier than order creation; execution state requires reconciliation.");
             return (new(RiskDecision.Approved, null), existingFill);
         }
 
