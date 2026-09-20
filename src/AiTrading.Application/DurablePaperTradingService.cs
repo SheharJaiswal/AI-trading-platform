@@ -74,6 +74,8 @@ public sealed class DurablePaperTradingService(
                 throw new InvalidOperationException($"Order {orderId} exists without a fill; execution state requires reconciliation.");
             if (existingFill.OrderId != orderId || existingFill.Symbol != existingOrder.Symbol || existingFill.Quantity != existingOrder.Quantity || existingFill.Side != existingOrder.Side)
                 throw new InvalidOperationException($"Order {orderId} has an inconsistent paper fill; execution state requires reconciliation.");
+            if (!string.Equals(existingFill.ExecutionProvider, "paper", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Order {orderId} has a non-paper fill provider; execution state requires reconciliation.");
             if (existingFill.FillPrice <= 0)
                 throw new InvalidOperationException($"Order {orderId} has an invalid paper fill price; execution state requires reconciliation.");
             return (new(RiskDecision.Approved, null), existingFill);
