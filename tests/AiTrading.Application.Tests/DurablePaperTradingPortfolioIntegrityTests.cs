@@ -105,14 +105,15 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         var orderId = Guid.NewGuid();
         var symbol = new Symbol("TCS", "123");
         var unitOfWork = new FakeUnitOfWork(portfolioId);
+        var idempotencyKey = $"persisted-invalid-order-quantity-{Guid.NewGuid():N}";
         unitOfWork.OrdersStore.Seed(
-            new OrderState(orderId, "persisted-invalid-order-quantity", symbol, symbol.InstrumentToken, OrderSide.Buy, 0, 100m, "strategy", DateTimeOffset.UtcNow, "paper", "filled"),
+            new OrderState(orderId, idempotencyKey, symbol, symbol.InstrumentToken, OrderSide.Buy, 0, 100m, "strategy", DateTimeOffset.UtcNow, "paper", "filled"),
             new FillState(orderId, orderId, symbol, OrderSide.Buy, 0, 100m, DateTimeOffset.UtcNow, "paper"));
         var execution = new BlockingExecution();
         var service = CreateService(unitOfWork, execution);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(
-            portfolioId, orderId, "persisted-invalid-order-quantity", symbol, 1, CancellationToken.None));
+            portfolioId, orderId, idempotencyKey, symbol, 1, CancellationToken.None));
 
         Assert.Equal($"Order {orderId} has an invalid persisted paper quantity; execution state requires reconciliation.", error.Message);
         Assert.Equal(0, execution.CallCount);
