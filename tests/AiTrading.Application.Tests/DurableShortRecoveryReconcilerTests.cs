@@ -110,6 +110,72 @@ public sealed class DurableShortRecoveryReconcilerTests
     }
 
     [Fact]
+    public void Default_order_timestamp_is_rejected()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var now = DateTimeOffset.UtcNow;
+        var order = new OrderState(orderId, "short-1", symbol, symbol.InstrumentToken, OrderSide.Sell, 5, 100m, "baseline-v1", default, "paper", "short-open-filled");
+        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Sell, 5, 99.5m, now, "paper");
+        var position = new DurableShortPositionState(orderId, Guid.NewGuid(), symbol, 5, 5, 99.5m, null, null, null, 0m, "SHORT_OPEN", now, now, 0);
+
+        var result = DurableShortRecoveryReconciler.ReconcileExecution(order, fill, position);
+
+        Assert.False(result.IsConsistent);
+        Assert.Equal("INVALID_SHORT_ORDER_TIMESTAMP", result.Reason);
+    }
+
+    [Fact]
+    public void Fill_before_order_creation_is_rejected()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var orderCreated = DateTimeOffset.UtcNow;
+        var fillTime = orderCreated.AddMilliseconds(-1);
+        var order = new OrderState(orderId, "short-1", symbol, symbol.InstrumentToken, OrderSide.Sell, 5, 100m, "baseline-v1", orderCreated, "paper", "short-open-filled");
+        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Sell, 5, 99.5m, fillTime, "paper");
+        var position = new DurableShortPositionState(orderId, Guid.NewGuid(), symbol, 5, 5, 99.5m, null, null, null, 0m, "SHORT_OPEN", orderCreated, orderCreated, 0);
+
+        var result = DurableShortRecoveryReconciler.ReconcileExecution(order, fill, position);
+
+        Assert.False(result.IsConsistent);
+        Assert.Equal("INVALID_SHORT_FILL_TIMESTAMP", result.Reason);
+    }
+
+    [Fact]
+    public void Position_created_before_fill_is_rejected()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var orderCreated = DateTimeOffset.UtcNow;
+        var fillTime = orderCreated.AddMilliseconds(1);
+        var order = new OrderState(orderId, "short-1", symbol, symbol.InstrumentToken, OrderSide.Sell, 5, 100m, "baseline-v1", orderCreated, "paper", "short-open-filled");
+        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Sell, 5, 99.5m, fillTime, "paper");
+        var position = new DurableShortPositionState(orderId, Guid.NewGuid(), symbol, 5, 5, 99.5m, null, null, null, 0m, "SHORT_OPEN", orderCreated, fillTime.AddMilliseconds(-1), 0);
+
+        var result = DurableShortRecoveryReconciler.ReconcileExecution(order, fill, position);
+
+        Assert.False(result.IsConsistent);
+        Assert.Equal("POSITION_CREATED_BEFORE_FILL", result.Reason);
+    }
+
+    [Fact]
+    public void Position_timestamp_regression_is_rejected_during_execution_reconciliation()
+    {
+        var orderId = Guid.NewGuid();
+        var symbol = new Symbol("TEST", "123");
+        var now = DateTimeOffset.UtcNow;
+        var order = new OrderState(orderId, "short-1", symbol, symbol.InstrumentToken, OrderSide.Sell, 5, 100m, "baseline-v1", now, "paper", "short-open-filled");
+        var fill = new FillState(Guid.NewGuid(), orderId, symbol, OrderSide.Sell, 5, 99.5m, now.AddMilliseconds(1), "paper");
+        var position = new DurableShortPositionState(orderId, Guid.NewGuid(), symbol, 5, 5, 99.5m, null, null, null, 0m, "SHORT_OPEN", now.AddMilliseconds(1), now, 0);
+
+        var result = DurableShortRecoveryReconciler.ReconcileExecution(order, fill, position);
+
+        Assert.False(result.IsConsistent);
+        Assert.Equal("INVALID_SHORT_POSITION_TIMESTAMP", result.Reason);
+    }
+
+    [Fact]
     public void Consistent_open_order_fill_and_position_reconcile()
     {
         var orderId = Guid.NewGuid();
