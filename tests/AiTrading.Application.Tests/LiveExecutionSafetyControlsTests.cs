@@ -7,7 +7,9 @@ public sealed class LiveExecutionSafetyControlsTests
         OperatorDisabled: false,
         EmergencyStopActive: false,
         ProviderHealthy: true,
-        UnresolvedReconciliationCount: 0);
+        UnresolvedReconciliationCount: 0,
+        AccountId: "paper-account",
+        Environment: "sandbox");
 
     [Fact]
     public void Safe_State_Allows_Live_Execution()
@@ -39,10 +41,30 @@ public sealed class LiveExecutionSafetyControlsTests
             operatorDisabled,
             emergencyStopActive,
             providerHealthy,
-            unresolvedReconciliationCount));
+            unresolvedReconciliationCount,
+            AccountId: "account",
+            Environment: "sandbox"));
 
         Assert.False(decision.Allowed);
         Assert.Equal(expectedReason, decision.BlockReason);
+    }
+
+    [Theory]
+    [InlineData(null, "sandbox")]
+    [InlineData("account", null)]
+    [InlineData("", "sandbox")]
+    [InlineData("account", "")]
+    public void Missing_Execution_Context_Fails_Closed(string? accountId, string? environment)
+    {
+        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with
+        {
+            AccountId = accountId,
+            Environment = environment
+        });
+
+        Assert.False(decision.Allowed);
+        Assert.Equal(LiveExecutionSafetyBlockReason.MissingExecutionContext, decision.BlockReason);
+        Assert.Equal("Live execution account and environment context are required.", decision.Reason);
     }
 
     [Fact]
@@ -54,7 +76,9 @@ public sealed class LiveExecutionSafetyControlsTests
             OperatorDisabled = true,
             EmergencyStopActive = true,
             ProviderHealthy = false,
-            UnresolvedReconciliationCount = 3
+            UnresolvedReconciliationCount = 3,
+            AccountId = null,
+            Environment = null
         });
 
         Assert.False(decision.Allowed);
