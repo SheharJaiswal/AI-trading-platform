@@ -46,6 +46,7 @@ public sealed class DurableShortRecoveryQueryServiceTests
         public IHistoricalCandleRepository HistoricalCandles => throw new NotSupportedException();
         public IBacktestRunRepository BacktestRuns => throw new NotSupportedException();
         public IBacktestAuditRepository BacktestAudit => throw new NotSupportedException();
+        public ILiveOrderStateRepository LiveOrders => throw new NotSupportedException();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
