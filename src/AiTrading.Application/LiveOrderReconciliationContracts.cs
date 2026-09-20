@@ -17,6 +17,14 @@ public sealed record LiveOrderReconciliationSnapshot(
     decimal? AverageFillPrice,
     DateTimeOffset ObservedAt);
 
+public sealed record LiveOrderReconciliationDecision(
+    LiveOrderReconciliationOutcome Outcome,
+    LiveOrderStatus BrokerStatus,
+    bool ReconciliationRequired,
+    string? Reason,
+    string? ProviderOrderId,
+    DateTimeOffset ObservedAt);
+
 public static class LiveOrderReconciliationContract
 {
     public static void ValidateSnapshot(LiveOrderReconciliationSnapshot snapshot)
@@ -33,28 +41,58 @@ public static class LiveOrderReconciliationContract
         if (snapshot.ObservedAt == default) throw new ArgumentException("ObservedAt is required.", nameof(snapshot));
     }
 
-    public static LiveOrderReconciliationOutcome Compare(
+    public static LiveOrderReconciliationDecision Decide(
         LiveOrderState local,
         LiveOrderReconciliationSnapshot broker)
     {
         ArgumentNullException.ThrowIfNull(local);
         ValidateSnapshot(broker);
 
-        if (local.OrderId != broker.OrderId ||
-            !string.Equals(local.IdempotencyKey, broker.IdempotencyKey, StringComparison.Ordinal) ||
-            !string.Equals(local.Provider, broker.Provider, StringComparison.OrdinalIgnoreCase))
-            return LiveOrderReconciliationOutcome.Divergent;
+        if (local.OrderId != broker.OrderId)
+            return Divergent(broker, "Order identity differs between local and broker state.");
+
+        if (!string.Equals(local.IdempotencyKey, broker.IdempotencyKey, StringComparison.Ordinal))
+            return Divergent(broker, "Idempotency key differs between local and broker state.");
+
+        if (!string.Equals(local.Provider, broker.Provider, StringComparison.OrdinalIgnoreCase))
+            return Divergent(broker, "Execution provider differs between local and broker state.");
 
         if (local.ProviderOrderId is not null && broker.ProviderOrderId is not null &&
             !string.Equals(local.ProviderOrderId, broker.ProviderOrderId, StringComparison.Ordinal))
-            return LiveOrderReconciliationOutcome.Divergent;
+            return Divergent(broker, "Provider order identity differs between local and broker state.");
 
         if (local.Status == LiveOrderStatus.Unknown || broker.Status == LiveOrderStatus.Unknown)
-            return LiveOrderReconciliationOutcome.Unresolved;
+            return new LiveOrderReconciliationDecision(
+                LiveOrderReconciliationOutcome.Unresolved,
+                broker.Status,
+                true,
+                "Unknown execution state requires reconciliation before it can be resolved.",
+                broker.ProviderOrderId,
+                broker.ObservedAt);
 
         if (local.Status != broker.Status)
-            return LiveOrderReconciliationOutcome.Divergent;
+            return Divergent(broker, "Live order status differs between local and broker state.");
 
-        return LiveOrderReconciliationOutcome.Matched;
+        return new LiveOrderReconciliationDecision(
+            LiveOrderReconciliationOutcome.Matched,
+            broker.Status,
+            false,
+            null,
+            broker.ProviderOrderId,
+            broker.ObservedAt);
     }
+
+    public static LiveOrderReconciliationOutcome Compare(
+        LiveOrderState local,
+        LiveOrderReconciliationSnapshot broker) => Decide(local, broker).Outcome;
+
+    private static LiveOrderReconciliationDecision Divergent(
+        LiveOrderReconciliationSnapshot broker,
+        string reason) => new(
+            LiveOrderReconciliationOutcome.Divergent,
+            broker.Status,
+            true,
+            reason,
+            broker.ProviderOrderId,
+            broker.ObservedAt);
 }
