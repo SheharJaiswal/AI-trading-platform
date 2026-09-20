@@ -59,11 +59,3 @@ public static class LiveOrderStateTransition
             throw new InvalidOperationException("Unknown live order state requires reconciliation.");
     }
 }
-
-public interface ILiveOrderStateRepository
-{
-    Task<LiveOrderState?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken);
-    Task<LiveOrderState?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken);
-    Task AddAsync(LiveOrderState state, CancellationToken cancellationToken);
-    Task UpdateAsync(LiveOrderState state, long expectedVersion, CancellationToken cancellationToken);
-}
