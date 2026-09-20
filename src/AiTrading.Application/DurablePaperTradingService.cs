@@ -11,7 +11,7 @@ public sealed class DurablePaperTradingService(
     ITradingUnitOfWorkFactory unitOfWorkFactory,
     decimal startingCash) : IPaperTradeService
 {
-    private sealed record InFlightExecution(Guid OrderId, Symbol Symbol, int Quantity, RiskResult Risk, FillState? Fill);
+    private sealed record InFlightExecution(Guid PortfolioId, Guid OrderId, Symbol Symbol, int Quantity, RiskResult Risk, FillState? Fill);
     private static readonly ConcurrentDictionary<string, TaskCompletionSource<InFlightExecution>> InFlight = new(StringComparer.Ordinal);
 
     public async Task<(RiskResult Risk, FillState? Fill)> ExecuteAsync(Guid portfolioId, Guid orderId, string idempotencyKey, Symbol symbol, int quantity, CancellationToken cancellationToken)
@@ -27,6 +27,8 @@ public sealed class DurablePaperTradingService(
         if (!ReferenceEquals(registered, completion))
         {
             var shared = await registered.Task.WaitAsync(cancellationToken);
+            if (shared.PortfolioId != portfolioId)
+                throw new InvalidOperationException("The idempotency key is already associated with a different portfolio.");
             if (shared.OrderId != orderId)
                 throw new InvalidOperationException("The idempotency key is already associated with a different order.");
             if (shared.Symbol != symbol || shared.Quantity != quantity)
@@ -37,7 +39,7 @@ public sealed class DurablePaperTradingService(
         try
         {
             var result = await ExecuteCoreAsync(portfolioId, orderId, idempotencyKey, symbol, quantity, cancellationToken);
-            completion.TrySetResult(new InFlightExecution(orderId, symbol, quantity, result.Risk, result.Fill));
+            completion.TrySetResult(new InFlightExecution(portfolioId, orderId, symbol, quantity, result.Risk, result.Fill));
             return result;
         }
         catch (Exception ex)
