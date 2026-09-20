@@ -25,7 +25,7 @@ public sealed class PaperTradingSessionExecutionTests
         var service = new PaperTradingSessionExecutionService(new StubSessionService(session), paperTrades);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
-            new PaperTradingEventRequest(session.Id, new Symbol("INFY", "456"), 1, "evt-1"), CancellationToken.None));
+            new PaperTradingEventRequest(session.Id, new Symbol("RELIANCE", "789"), 1, "evt-1"), CancellationToken.None));
         Assert.Null(paperTrades.LastRequest);
     }
 
@@ -128,6 +128,44 @@ public sealed class PaperTradingSessionExecutionTests
     }
 
     [Fact]
+    public async Task Persisted_Replay_With_Mismatched_Symbol_Fails_Closed_Without_Reexecution()
+    {
+        var session = CreateSession(PaperTradingSessionStatus.Running);
+        var audit = new InMemoryEventAuditRepository();
+        await audit.AddAsync(new PaperTradingEventAuditState(
+            Guid.NewGuid(), session.Id, "evt-mismatch-symbol", Guid.NewGuid(), session.Configuration.Symbols[0], 1,
+            RiskDecision.Approved.ToString(), "approved", 100m, DateTimeOffset.UtcNow), CancellationToken.None);
+        var paperTrades = new CapturingPaperTradeService();
+        var service = new PaperTradingSessionExecutionService(
+            new StubSessionService(session), paperTrades, new FakeUnitOfWorkFactory(audit));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
+            new PaperTradingEventRequest(session.Id, new Symbol("INFY", "456"), 1, "evt-mismatch-symbol"), CancellationToken.None));
+
+        Assert.Equal("Persisted paper event audit does not match the replay request.", error.Message);
+        Assert.Equal(0, paperTrades.CallCount);
+    }
+
+    [Fact]
+    public async Task Persisted_Replay_With_Mismatched_Quantity_Fails_Closed_Without_Reexecution()
+    {
+        var session = CreateSession(PaperTradingSessionStatus.Running);
+        var audit = new InMemoryEventAuditRepository();
+        await audit.AddAsync(new PaperTradingEventAuditState(
+            Guid.NewGuid(), session.Id, "evt-mismatch-quantity", Guid.NewGuid(), session.Configuration.Symbols[0], 1,
+            RiskDecision.Approved.ToString(), "approved", 100m, DateTimeOffset.UtcNow), CancellationToken.None);
+        var paperTrades = new CapturingPaperTradeService();
+        var service = new PaperTradingSessionExecutionService(
+            new StubSessionService(session), paperTrades, new FakeUnitOfWorkFactory(audit));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
+            new PaperTradingEventRequest(session.Id, session.Configuration.Symbols[0], 2, "evt-mismatch-quantity"), CancellationToken.None));
+
+        Assert.Equal("Persisted paper event audit does not match the replay request.", error.Message);
+        Assert.Equal(0, paperTrades.CallCount);
+    }
+
+    [Fact]
     public async Task Persisted_Approved_Event_Without_Fill_Fails_Closed()
     {
         var session = CreateSession(PaperTradingSessionStatus.Running);
@@ -172,7 +210,7 @@ public sealed class PaperTradingSessionExecutionTests
     private static PaperTradingSessionState CreateSession(PaperTradingSessionStatus status) =>
         new(
             Guid.NewGuid(),
-            new PaperTradingSessionConfiguration([new Symbol("TCS", "123")], "1m", "baseline-v1", 10_000m),
+            new PaperTradingSessionConfiguration([new Symbol("TCS", "123"), new Symbol("INFY", "456")], "1m", "baseline-v1", 10_000m),
             status,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow);
