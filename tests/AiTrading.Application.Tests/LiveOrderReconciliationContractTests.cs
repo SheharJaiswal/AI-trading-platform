@@ -55,6 +55,13 @@ public sealed class LiveOrderReconciliationContractTests
     }
 
     [Fact]
+    public void Unknown_Broker_State_Is_Unresolved()
+    {
+        Assert.Equal(LiveOrderReconciliationOutcome.Unresolved,
+            LiveOrderReconciliationContract.Compare(Local(), Broker(LiveOrderStatus.Unknown)));
+    }
+
+    [Fact]
     public void Filled_Quantity_Requires_Price()
     {
         var broker = Broker(LiveOrderStatus.Filled) with { FilledQuantity = 1 };
@@ -69,14 +76,5 @@ public sealed class LiveOrderReconciliationContractTests
         var broker = Broker() with { FilledQuantity = -1 };
         Assert.Throws<ArgumentException>(() =>
             LiveOrderReconciliationContract.ValidateSnapshot(broker));
-    }
-
-    [Fact]
-    public void Unknown_Broker_State_Is_Rejected_As_Unresolved_Input()
-    {
-        var broker = Broker(LiveOrderStatus.Unknown);
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            LiveOrderReconciliationContract.ValidateSnapshot(broker));
-        Assert.Contains("requires reconciliation", exception.Message);
     }
 }
