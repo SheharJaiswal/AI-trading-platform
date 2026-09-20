@@ -28,6 +28,8 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
             var existing = await replayUow.PaperTradingEventAudits.GetBySessionAndEventAsync(request.SessionId, request.EventId, ct);
             if (existing is not null)
             {
+                if (existing.Symbol != request.Symbol || existing.Quantity != request.Quantity)
+                    throw new InvalidOperationException("Persisted paper event audit does not match the replay request.");
                 if (!Enum.TryParse<RiskDecision>(existing.RiskDecision, out var decision))
                     throw new InvalidOperationException("Persisted paper event audit contains an invalid risk decision.");
                 var existingFill = await replayUow.Orders.GetFillByOrderIdAsync(existing.OrderId, ct);
