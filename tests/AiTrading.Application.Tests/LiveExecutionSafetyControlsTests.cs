@@ -64,6 +64,15 @@ public sealed class LiveExecutionSafetyControlsTests
     }
 
     [Fact]
+    public void Invalid_Reconciliation_Count_Is_Fail_Closed()
+    {
+        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with { UnresolvedReconciliationCount = -1 });
+
+        Assert.False(decision.Allowed);
+        Assert.Contains("reconciliation state is invalid", decision.Reason);
+    }
+
+    [Fact]
     public void Multiple_Safety_Failures_Remain_Fail_Closed()
     {
         var decision = LiveExecutionSafetyGate.Evaluate(Safe() with
