@@ -284,6 +284,125 @@ public sealed class MonitoringRunIntegrationTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => runService.GetRecentRunsAsync(0, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task MonitoringRunService_Rejects_Negative_Persisted_Counts()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddMinutes(1),
+            Status = MonitoringRunStatus.Failed.ToString(),
+            PositionCount = -1,
+            FailureCount = 1
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateRunService(db).GetRunAsync(runId, CancellationToken.None));
+        Assert.Contains("negative persisted counts", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MonitoringRunService_Rejects_Completion_Before_Start()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddSeconds(-1),
+            Status = MonitoringRunStatus.Completed.ToString(),
+            PositionCount = 0,
+            FailureCount = 0
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateRunService(db).GetRunAsync(runId, CancellationToken.None));
+        Assert.Contains("earlier than its start", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MonitoringRunService_Rejects_Running_Run_With_Completion()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddSeconds(1),
+            Status = MonitoringRunStatus.Running.ToString(),
+            PositionCount = 0,
+            FailureCount = 0
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateRunService(db).GetRunAsync(runId, CancellationToken.None));
+        Assert.Contains("inconsistent running state", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MonitoringRunService_Rejects_Terminal_Run_Without_Completion()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            CompletedAt = null,
+            Status = MonitoringRunStatus.Completed.ToString(),
+            PositionCount = 0,
+            FailureCount = 0
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateRunService(db).GetRunAsync(runId, CancellationToken.None));
+        Assert.Contains("without a completion timestamp", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MonitoringRunService_Rejects_Unknown_Persisted_Status()
+    {
+        await using var db = await CreateMigratedContextAsync();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        db.Set<MonitoringRunRecord>().Add(new MonitoringRunRecord
+        {
+            Id = runId,
+            StartedAt = startedAt,
+            CompletedAt = startedAt.AddSeconds(1),
+            Status = "Corrupted",
+            PositionCount = 0,
+            FailureCount = 0
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateRunService(db).GetRunAsync(runId, CancellationToken.None));
+        Assert.Contains("invalid persisted status", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static MonitoringRunService CreateRunService(TradingDbContext db)
+    {
+        var connectionString = ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("AI_TRADING_MYSQL_CONNECTION must be configured for MySQL integration tests.");
+
+        var dbOptions = new DbContextOptionsBuilder<TradingDbContext>()
+            .UseMySql(connectionString, ServerVersion.Parse("8.0.0-mysql"))
+            .Options;
+        return new MonitoringRunService(
+            new DurableRiskMonitor(new FakeMarketDataProvider(), new TestUnitOfWorkFactory(dbOptions), Guid.NewGuid(), new NoopAlertDelivery()),
+            new EfMonitoringRunRepository(new TestDbContextFactory(dbOptions)),
+            TimeProvider.System);
+    }
+
     private static async Task<TradingDbContext> CreateMigratedContextAsync()
     {
         var connectionString = ConnectionString;
