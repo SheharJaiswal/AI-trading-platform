@@ -55,7 +55,7 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         var symbol = new Symbol("TCS", "123");
         var unitOfWork = new FakeUnitOfWork(portfolioId);
         unitOfWork.OrdersStore.Seed(
-            new OrderState(orderId, "original-key", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", DateTimeOffset.UtcNow, "filled"),
+            new OrderState(orderId, "original-key", symbol, symbol.InstrumentToken, OrderSide.Buy, 1, 100m, "strategy", DateTimeOffset.UtcNow, "paper", "filled"),
             new FillState(orderId, orderId, symbol, OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper"));
         var execution = new BlockingExecution();
         var service = CreateService(unitOfWork, execution);
