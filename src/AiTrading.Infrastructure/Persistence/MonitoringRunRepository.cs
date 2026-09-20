@@ -56,6 +56,7 @@ public sealed class EfMonitoringRunRepository(IDbContextFactory<TradingDbContext
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         var staleRuns = await db.Set<MonitoringRunRecord>()
+            .AsNoTracking()
             .Where(x => x.Status == MonitoringRunStatus.Running.ToString() && x.CompletedAt == null && x.StartedAt < startedBefore)
             .ToListAsync(cancellationToken);
 
@@ -69,17 +70,23 @@ public sealed class EfMonitoringRunRepository(IDbContextFactory<TradingDbContext
 
             if (recoveredAt < record.StartedAt)
                 throw new InvalidOperationException($"Monitoring run {record.Id} has a recovery timestamp earlier than its start timestamp; monitoring state requires reconciliation.");
-
-            record.CompletedAt = recoveredAt;
-            record.Status = MonitoringRunStatus.Failed.ToString();
-            record.PositionCount = 0;
-            record.FailureCount = 1;
         }
 
-        if (staleRuns.Count > 0)
-            await db.SaveChangesAsync(cancellationToken);
+        var recoveredCount = 0;
+        foreach (var record in staleRuns)
+        {
+            recoveredCount += await db.Set<MonitoringRunRecord>()
+                .Where(x => x.Id == record.Id &&
+                            x.Status == MonitoringRunStatus.Running.ToString() &&
+                            x.CompletedAt == null)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.CompletedAt, recoveredAt)
+                    .SetProperty(x => x.Status, MonitoringRunStatus.Failed.ToString())
+                    .SetProperty(x => x.PositionCount, 0)
+                    .SetProperty(x => x.FailureCount, 1), cancellationToken);
+        }
 
-        return staleRuns.Count;
+        return recoveredCount;
     }
 
     public async Task<MonitoringRunState?> GetAsync(Guid id, CancellationToken cancellationToken)
