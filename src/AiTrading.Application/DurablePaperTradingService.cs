@@ -20,6 +20,8 @@ public sealed class DurablePaperTradingService(
             throw new ArgumentException("A non-empty idempotency key of at most 128 characters is required.", nameof(idempotencyKey));
         if (startingCash <= 0)
             throw new InvalidOperationException("Starting cash must be positive.");
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Order quantity must be positive.");
         cancellationToken.ThrowIfCancellationRequested();
 
         var completion = new TaskCompletionSource<InFlightExecution>(TaskCreationOptions.RunContinuationsAsynchronously);
