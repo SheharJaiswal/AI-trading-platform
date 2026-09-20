@@ -25,7 +25,7 @@ public sealed class PaperTradingSessionExecutionTests
         var service = new PaperTradingSessionExecutionService(new StubSessionService(session), paperTrades);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
-            new PaperTradingEventRequest(session.Id, new Symbol("INFY", "456"), 1, "evt-1"), CancellationToken.None));
+            new PaperTradingEventRequest(session.Id, new Symbol("RELIANCE", "789"), 1, "evt-1"), CancellationToken.None));
         Assert.Null(paperTrades.LastRequest);
     }
 
@@ -140,7 +140,7 @@ public sealed class PaperTradingSessionExecutionTests
             new StubSessionService(session), paperTrades, new FakeUnitOfWorkFactory(audit));
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
-            new PaperTradingEventRequest(session.Id, new Symbol("TCS", "999"), 1, "evt-mismatch-symbol"), CancellationToken.None));
+            new PaperTradingEventRequest(session.Id, new Symbol("INFY", "456"), 1, "evt-mismatch-symbol"), CancellationToken.None));
 
         Assert.Equal("Persisted paper event audit does not match the replay request.", error.Message);
         Assert.Equal(0, paperTrades.CallCount);
@@ -210,7 +210,7 @@ public sealed class PaperTradingSessionExecutionTests
     private static PaperTradingSessionState CreateSession(PaperTradingSessionStatus status) =>
         new(
             Guid.NewGuid(),
-            new PaperTradingSessionConfiguration([new Symbol("TCS", "123")], "1m", "baseline-v1", 10_000m),
+            new PaperTradingSessionConfiguration([new Symbol("TCS", "123"), new Symbol("INFY", "456")], "1m", "baseline-v1", 10_000m),
             status,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow);
