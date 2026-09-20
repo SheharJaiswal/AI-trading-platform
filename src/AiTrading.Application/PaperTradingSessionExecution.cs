@@ -31,6 +31,10 @@ public sealed class PaperTradingSessionExecutionService(IPaperTradingSessionServ
                 if (!Enum.TryParse<RiskDecision>(existing.RiskDecision, out var decision))
                     throw new InvalidOperationException("Persisted paper event audit contains an invalid risk decision.");
                 var existingFill = await replayUow.Orders.GetFillByOrderIdAsync(existing.OrderId, ct);
+                if (decision == RiskDecision.Approved && existingFill is null)
+                    throw new InvalidOperationException("Persisted paper event audit is approved but its paper fill is missing.");
+                if (decision != RiskDecision.Approved && existingFill is not null)
+                    throw new InvalidOperationException("Persisted paper event audit is blocked but has a paper fill.");
                 return new(request.SessionId, request.EventId, new RiskResult(decision, string.IsNullOrEmpty(existing.RiskReason) ? null : existing.RiskReason), existingFill, "PAPER_ONLY");
             }
         }
