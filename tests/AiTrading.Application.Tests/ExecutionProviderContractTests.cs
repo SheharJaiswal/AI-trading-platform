@@ -1,4 +1,5 @@
 using AiTrading.Domain;
+using FluentAssertions;
 
 namespace AiTrading.Application.Tests;
 
