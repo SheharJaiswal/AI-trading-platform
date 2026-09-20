@@ -6,6 +6,17 @@ namespace AiTrading.Application.Tests;
 public sealed class DurablePaperTradingPortfolioIntegrityTests
 {
     [Fact]
+    public async Task NonPositive_Order_Quantity_Is_Rejected_Before_Execution()
+    {
+        var service = CreateService(new FakeUnitOfWork(Guid.NewGuid()), new BlockingExecution());
+
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.ExecuteAsync(
+            Guid.NewGuid(), Guid.NewGuid(), "invalid-quantity", new Symbol("TCS", "123"), 0, CancellationToken.None));
+
+        Assert.Equal("quantity", error.ParamName);
+    }
+
+    [Fact]
     public async Task Concurrent_Idempotency_Key_With_Different_Portfolio_Is_Rejected()
     {
         var firstPortfolioId = Guid.NewGuid();
