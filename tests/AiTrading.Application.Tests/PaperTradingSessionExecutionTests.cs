@@ -165,6 +165,39 @@ public sealed class PaperTradingSessionExecutionTests
         Assert.Equal(0, paperTrades.CallCount);
     }
 
+    [Theory]
+    [InlineData("symbol")]
+    [InlineData("quantity")]
+    [InlineData("order")]
+    [InlineData("price")]
+    public async Task Persisted_Replay_With_Inconsistent_Fill_Fails_Closed(string mismatch)
+    {
+        var session = CreateSession(PaperTradingSessionStatus.Running);
+        var orderId = Guid.NewGuid();
+        var audit = new InMemoryEventAuditRepository();
+        await audit.AddAsync(new PaperTradingEventAuditState(
+            Guid.NewGuid(), session.Id, "evt-corrupt-fill", orderId, session.Configuration.Symbols[0], 2,
+            RiskDecision.Approved.ToString(), "approved", 100m, DateTimeOffset.UtcNow), CancellationToken.None);
+        var persistedFill = new FillState(
+            Guid.NewGuid(),
+            mismatch == "order" ? Guid.NewGuid() : orderId,
+            mismatch == "symbol" ? new Symbol("INFY", "456") : session.Configuration.Symbols[0],
+            OrderSide.Buy,
+            mismatch == "quantity" ? 1 : 2,
+            mismatch == "price" ? 101m : 100m,
+            DateTimeOffset.UtcNow,
+            "paper-test");
+        var paperTrades = new CapturingPaperTradeService();
+        var service = new PaperTradingSessionExecutionService(
+            new StubSessionService(session), paperTrades, new FakeUnitOfWorkFactory(audit, persistedFill));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(
+            new PaperTradingEventRequest(session.Id, session.Configuration.Symbols[0], 2, "evt-corrupt-fill"), CancellationToken.None));
+
+        Assert.Equal("Persisted paper event audit fill does not match the persisted audit state.", error.Message);
+        Assert.Equal(0, paperTrades.CallCount);
+    }
+
     [Fact]
     public async Task Persisted_Approved_Event_Without_Fill_Fails_Closed()
     {
@@ -260,15 +293,16 @@ public sealed class PaperTradingSessionExecutionTests
             Task.FromResult<IReadOnlyList<PaperTradingEventAuditState>>(audits.Where(x => x.SessionId == sessionId).ToArray());
     }
 
-    private sealed class FakeUnitOfWorkFactory(InMemoryEventAuditRepository audit, bool returnFill = true) : ITradingUnitOfWorkFactory
+    private sealed class FakeUnitOfWorkFactory(InMemoryEventAuditRepository audit, FillState? persistedFill = null, bool returnFill = true) : ITradingUnitOfWorkFactory
     {
-        public Task<ITradingUnitOfWork> CreateAsync(CancellationToken cancellationToken) => Task.FromResult<ITradingUnitOfWork>(new FakeUnitOfWork(audit, returnFill));
+        public FakeUnitOfWorkFactory(InMemoryEventAuditRepository audit, bool returnFill) : this(audit, null, returnFill) { }
+        public Task<ITradingUnitOfWork> CreateAsync(CancellationToken cancellationToken) => Task.FromResult<ITradingUnitOfWork>(new FakeUnitOfWork(audit, persistedFill, returnFill));
     }
 
-    private sealed class FakeUnitOfWork(InMemoryEventAuditRepository audit, bool returnFill) : ITradingUnitOfWork
+    private sealed class FakeUnitOfWork(InMemoryEventAuditRepository audit, FillState? persistedFill, bool returnFill) : ITradingUnitOfWork
     {
         public IPortfolioRepository Portfolios => throw new NotSupportedException();
-        public IOrderRepository Orders => new ReplayOrderRepository(returnFill);
+        public IOrderRepository Orders => new ReplayOrderRepository(persistedFill, returnFill);
         public IDurableShortPositionRepository DurableShortPositions => throw new NotSupportedException();
         public IPaperTradingEventAuditRepository PaperTradingEventAudits => audit;
         public IAlertRepository Alerts => throw new NotSupportedException();
@@ -280,7 +314,7 @@ public sealed class PaperTradingSessionExecutionTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class ReplayOrderRepository(bool returnFill) : IOrderRepository
+    private sealed class ReplayOrderRepository(FillState? persistedFill, bool returnFill) : IOrderRepository
     {
         public Task<OrderState?> GetAsync(Guid orderId, CancellationToken cancellationToken) => Task.FromResult<OrderState?>(null);
         public Task<OrderState?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken) => Task.FromResult<OrderState?>(null);
@@ -288,7 +322,7 @@ public sealed class PaperTradingSessionExecutionTests
         public Task<IReadOnlyList<FillState>> GetFillsByOrderIdsAsync(IReadOnlyList<Guid> orderIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FillState>>([]);
         public Task AddAsync(OrderState order, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<FillState?> GetFillByOrderIdAsync(Guid orderId, CancellationToken cancellationToken) =>
-            Task.FromResult<FillState?>(returnFill ? new FillState(Guid.NewGuid(), orderId, new Symbol("TCS", "123"), OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper-test") : null);
+            Task.FromResult<FillState?>(persistedFill ?? (returnFill ? new FillState(Guid.NewGuid(), orderId, new Symbol("TCS", "123"), OrderSide.Buy, 1, 100m, DateTimeOffset.UtcNow, "paper-test") : null));
         public Task AddFillAsync(FillState fill, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
