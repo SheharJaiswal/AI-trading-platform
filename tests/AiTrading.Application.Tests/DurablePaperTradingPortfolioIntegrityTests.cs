@@ -133,4 +133,41 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         public Task AddAsync(DurableShortPositionState position, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<DurableShortPositionState> ApplyCoverAsync(Guid positionId, string idempotencyKey, decimal coverPrice, int coverQuantity, long expectedVersion, DateTimeOffset now, CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
+
+    private sealed class NoOpPaperTradingEventAuditRepository : IPaperTradingEventAuditRepository
+    {
+        public Task AddAsync(PaperTradingEventAuditState audit, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<PaperTradingEventAuditState?> GetBySessionAndEventAsync(Guid sessionId, string eventId, CancellationToken cancellationToken) => Task.FromResult<PaperTradingEventAuditState?>(null);
+        public Task<IReadOnlyList<PaperTradingEventAuditState>> GetBySessionAsync(Guid sessionId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<PaperTradingEventAuditState>>([]);
+    }
+
+    private sealed class NoOpAlertRepository : IAlertRepository
+    {
+        public Task AddAsync(AlertState alert, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<AlertState>> GetRecentAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<AlertState>>([]);
+    }
+
+    private sealed class NoOpMarketDataRepository : IMarketDataSnapshotRepository
+    {
+        public Task AddAsync(MarketDataSnapshotState snapshot, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<MarketDataSnapshotState?> GetLatestAsync(Symbol symbol, CancellationToken cancellationToken) => Task.FromResult<MarketDataSnapshotState?>(null);
+    }
+
+    private sealed class NoOpHistoricalCandleRepository : IHistoricalCandleRepository
+    {
+        public Task AddAsync(HistoricalCandleState candle, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<HistoricalCandleState>> GetAsync(Symbol symbol, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<HistoricalCandleState>>([]);
+    }
+
+    private sealed class NoOpBacktestRunRepository : IBacktestRunRepository
+    {
+        public Task AddAsync(BacktestRunState run, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<BacktestRunState?> GetAsync(Guid runId, CancellationToken cancellationToken) => Task.FromResult<BacktestRunState?>(null);
+    }
+
+    private sealed class NoOpBacktestAuditRepository : IBacktestAuditRepository
+    {
+        public Task AddAsync(BacktestAuditState audit, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<BacktestAuditState>> GetByRunAsync(Guid runId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BacktestAuditState>>([]);
+    }
 }
