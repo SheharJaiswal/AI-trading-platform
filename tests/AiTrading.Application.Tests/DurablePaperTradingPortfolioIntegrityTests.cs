@@ -298,6 +298,7 @@ public sealed class DurablePaperTradingPortfolioIntegrityTests
         public IHistoricalCandleRepository HistoricalCandles { get; } = new NoOpHistoricalCandleRepository();
         public IBacktestRunRepository BacktestRuns { get; } = new NoOpBacktestRunRepository();
         public IBacktestAuditRepository BacktestAudit { get; } = new NoOpBacktestAuditRepository();
+        public ILiveOrderStateRepository LiveOrders => throw new NotSupportedException();
         public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
