@@ -1,3 +1,4 @@
+using AiTrading.Application;
 using Microsoft.EntityFrameworkCore;
 namespace AiTrading.Infrastructure.Persistence;
 public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options) : DbContext(options)
