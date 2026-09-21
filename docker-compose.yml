@@ -27,8 +27,13 @@ services:
       Persistence__MySql__Enabled: "true"
       Persistence__MySql__ServerVersion: "8.4.0-mysql"
       ConnectionStrings__MySql: "Server=mysql;Port=3306;Database=ai_trading;User=ai_trading;Password=ai_trading_dev;"
-      MarketData__Provider: demo
+      MarketData__Provider: ${MARKET_DATA_PROVIDER:-angelone}
       AI__Provider: disabled
+      AngelOne__ApiKey: ${ANGELONE_API_KEY:-}
+      AngelOne__AuthorizationToken: ${ANGELONE_AUTHORIZATION_TOKEN:-}
+      AngelOne__ClientLocalIP: ${ANGELONE_CLIENT_LOCAL_IP:-}
+      AngelOne__ClientPublicIP: ${ANGELONE_CLIENT_PUBLIC_IP:-}
+      AngelOne__MACAddress: ${ANGELONE_MAC_ADDRESS:-}
       Trading__StartingCash: "1000000"
       Monitoring__RiskIntervalSeconds: "60"
       AutonomousLoop__Quantity: "1"
