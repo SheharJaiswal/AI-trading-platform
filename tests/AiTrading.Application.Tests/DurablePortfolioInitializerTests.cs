@@ -56,4 +56,25 @@ public sealed class DurablePortfolioInitializerTests
             It.IsAny<CancellationToken>()), Times.Never);
         unitOfWork.Verify(x => x.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Concurrent_Initializer_Treats_Already_Created_Portfolio_As_Success()
+    {
+        var portfolioId = Guid.NewGuid();
+        var repository = new Mock<IPortfolioRepository>();
+        var unitOfWork = new Mock<ITradingUnitOfWork>();
+        var factory = new Mock<ITradingUnitOfWorkFactory>();
+        var existing = new PortfolioState(portfolioId, 1_000_000m, 0m, DateTimeOffset.UtcNow, 0, 1_000_000m);
+        var reads = 0;
+
+        repository.Setup(x => x.GetAsync(portfolioId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref reads) == 1 ? null : existing);
+        unitOfWork.SetupGet(x => x.Portfolios).Returns(repository.Object);
+        unitOfWork.Setup(x => x.CommitAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("duplicate key"));
+        factory.Setup(x => x.CreateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(unitOfWork.Object);
+
+        await new DurablePortfolioInitializer(factory.Object, portfolioId, 1_000_000m)
+            .InitializeAsync(CancellationToken.None);
+    }
 }
