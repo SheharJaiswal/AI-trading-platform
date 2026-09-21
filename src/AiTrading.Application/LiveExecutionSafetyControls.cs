@@ -9,6 +9,7 @@ public enum LiveExecutionSafetyBlockReason
     EmergencyStopActive,
     ProviderUnhealthy,
     MissingExecutionContext,
+    MissingCredentialReference,
     UnresolvedReconciliation
 }
 
@@ -19,7 +20,8 @@ public sealed record LiveExecutionSafetyState(
     bool ProviderHealthy,
     int UnresolvedReconciliationCount,
     string? AccountId = null,
-    string? Environment = null);
+    string? Environment = null,
+    LiveExecutionCredentialReference? CredentialReference = null);
 
 public sealed record LiveExecutionSafetyDecision(
     bool Allowed,
@@ -44,6 +46,8 @@ public static class LiveExecutionSafetyGate
             return Block(LiveExecutionSafetyBlockReason.ProviderUnhealthy, "Live execution provider is not healthy.");
         if (string.IsNullOrWhiteSpace(state.AccountId) || string.IsNullOrWhiteSpace(state.Environment))
             return Block(LiveExecutionSafetyBlockReason.MissingExecutionContext, "Live execution account and environment context are required.");
+        if (state.CredentialReference is null)
+            return Block(LiveExecutionSafetyBlockReason.MissingCredentialReference, "Live execution credential reference is required.");
         if (state.UnresolvedReconciliationCount > 0)
             return Block(LiveExecutionSafetyBlockReason.UnresolvedReconciliation, "Live execution has unresolved reconciliation state.");
 

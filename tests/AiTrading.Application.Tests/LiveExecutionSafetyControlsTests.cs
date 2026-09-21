@@ -2,6 +2,13 @@ namespace AiTrading.Application.Tests;
 
 public sealed class LiveExecutionSafetyControlsTests
 {
+    private static LiveExecutionCredentialReference SafeCredential() =>
+        LiveExecutionCredentialReference.Create(
+            "broker",
+            "secret://live/account",
+            "paper-account",
+            "sandbox");
+
     private static LiveExecutionSafetyState Safe() => new(
         ExplicitlyEnabled: true,
         OperatorDisabled: false,
@@ -9,7 +16,8 @@ public sealed class LiveExecutionSafetyControlsTests
         ProviderHealthy: true,
         UnresolvedReconciliationCount: 0,
         AccountId: "paper-account",
-        Environment: "sandbox");
+        Environment: "sandbox",
+        CredentialReference: SafeCredential());
 
     [Fact]
     public void Safe_State_Allows_Live_Execution()
@@ -43,7 +51,8 @@ public sealed class LiveExecutionSafetyControlsTests
             providerHealthy,
             unresolvedReconciliationCount,
             AccountId: "account",
-            Environment: "sandbox"));
+            Environment: "sandbox",
+            CredentialReference: SafeCredential()));
 
         Assert.False(decision.Allowed);
         Assert.Equal(expectedReason, decision.BlockReason);
@@ -68,6 +77,19 @@ public sealed class LiveExecutionSafetyControlsTests
     }
 
     [Fact]
+    public void Missing_Credential_Reference_Fails_Closed()
+    {
+        var decision = LiveExecutionSafetyGate.Evaluate(Safe() with
+        {
+            CredentialReference = null
+        });
+
+        Assert.False(decision.Allowed);
+        Assert.Equal(LiveExecutionSafetyBlockReason.MissingCredentialReference, decision.BlockReason);
+        Assert.Equal("Live execution credential reference is required.", decision.Reason);
+    }
+
+    [Fact]
     public void Multiple_Safety_Failures_Use_First_Fail_Closed_Reason()
     {
         var decision = LiveExecutionSafetyGate.Evaluate(Safe() with
@@ -78,7 +100,8 @@ public sealed class LiveExecutionSafetyControlsTests
             ProviderHealthy = false,
             UnresolvedReconciliationCount = 3,
             AccountId = null,
-            Environment = null
+            Environment = null,
+            CredentialReference = null
         });
 
         Assert.False(decision.Allowed);
