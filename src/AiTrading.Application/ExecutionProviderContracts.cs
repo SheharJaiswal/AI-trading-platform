@@ -19,7 +19,8 @@ public sealed record ExecutionRequest(
     Symbol Symbol,
     OrderSide Side,
     int Quantity,
-    decimal LimitPrice);
+    decimal LimitPrice,
+    string? EnvironmentContext = null);
 
 public sealed record ExecutionResult(
     ExecutionProviderStatus Status,
@@ -61,8 +62,13 @@ public static class ExecutionProviderContract
         if (request.Context.Mode is ExecutionMode.Backtest or ExecutionMode.Research)
             throw new InvalidOperationException("Historical and research workflows cannot submit execution requests.");
 
-        if (request.Context.Mode == ExecutionMode.Live && !request.Context.ExplicitlyEnabled)
-            throw new InvalidOperationException("Live execution requires explicit operator enablement.");
+        if (request.Context.Mode == ExecutionMode.Live)
+        {
+            if (!request.Context.ExplicitlyEnabled)
+                throw new InvalidOperationException("Live execution requires explicit operator enablement.");
+            if (string.IsNullOrWhiteSpace(request.EnvironmentContext))
+                throw new InvalidOperationException("Live execution requires explicit environment context.");
+        }
     }
 
     public static ExecutionResult CreateUnknown(
