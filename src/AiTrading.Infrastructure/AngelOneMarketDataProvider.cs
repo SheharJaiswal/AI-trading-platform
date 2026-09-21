@@ -12,6 +12,9 @@ public sealed class AngelOneOptions
     public string BaseUrl { get; init; } = "https://apiconnect.angelone.in";
     public string ApiKey { get; init; } = "";
     public string AuthorizationToken { get; init; } = "";
+    public string ClientLocalIp { get; init; } = "";
+    public string ClientPublicIp { get; init; } = "";
+    public string MacAddress { get; init; } = "";
 }
 
 public sealed class AngelOneMarketDataProvider(HttpClient http, AngelOneOptions options) : IMarketDataProvider
@@ -68,6 +71,9 @@ public sealed class AngelOneMarketDataProvider(HttpClient http, AngelOneOptions 
         request.Headers.Add("X-PrivateKey", options.ApiKey);
         request.Headers.Add("X-UserType", "USER");
         request.Headers.Add("X-SourceID", "WEB");
+        if (!string.IsNullOrWhiteSpace(options.ClientLocalIp)) request.Headers.Add("X-ClientLocalIP", options.ClientLocalIp);
+        if (!string.IsNullOrWhiteSpace(options.ClientPublicIp)) request.Headers.Add("X-ClientPublicIP", options.ClientPublicIp);
+        if (!string.IsNullOrWhiteSpace(options.MacAddress)) request.Headers.Add("X-MACAddress", options.MacAddress);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.AuthorizationToken);
     }
 

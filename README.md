@@ -37,7 +37,7 @@ The complete stack runs as three containers: MySQL, the .NET API, and the Angula
 docker compose up --build
 ```
 
-Open the dashboard at `http://localhost:4200` and the API health endpoint at `http://localhost:8080/health`.
+Open the dashboard at `http://localhost:4200` and the API health endpoint at `http://localhost:8080/health`. The initial durable paper portfolio is created automatically, so `GET /api/portfolio` returns the configured starting portfolio instead of requiring a prior paper trade.
 
 To stop the stack while retaining MySQL data:
 
@@ -58,7 +58,7 @@ docker compose up -d mysql
 dotnet run --project src/AiTrading.Api
 ```
 
-The default market provider is `demo`. Docker Compose enables MySQL persistence, uses a local demo market-data provider, and keeps AI disabled by default. Provider credentials are not stored in the Compose file.
+The default Docker Compose market provider is `angelone`, so paper trading uses real Angel One market prices while execution remains simulated and never submits broker orders. Set `ANGELONE_API_KEY`, `ANGELONE_AUTHORIZATION_TOKEN`, `ANGELONE_CLIENT_LOCAL_IP`, `ANGELONE_CLIENT_PUBLIC_IP`, and `ANGELONE_MAC_ADDRESS` in the environment before starting the stack. Set `MARKET_DATA_PROVIDER=demo` only when deterministic demo prices are intentionally required. Provider secrets are supplied through environment variables and are not committed to the repository.
 
 ### Background risk monitoring
 

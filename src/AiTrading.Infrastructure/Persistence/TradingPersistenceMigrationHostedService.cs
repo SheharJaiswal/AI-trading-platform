@@ -11,8 +11,8 @@ public sealed class TradingPersistenceMigrationHostedService(
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        await db.Database.MigrateAsync(cancellationToken);
-        logger.LogInformation("Trading persistence migrations applied successfully.");
+        await DatabaseMigrationExtensions.MigrateAsync(db.Database, cancellationToken);
+        logger.LogInformation("Trading persistence migrations applied successfully or deferred until MySQL is available.");
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
