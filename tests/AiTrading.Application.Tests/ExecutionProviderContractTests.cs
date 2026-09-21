@@ -3,7 +3,7 @@ namespace AiTrading.Application.Tests;
 
 public sealed class ExecutionProviderContractTests
 {
-    private static ExecutionRequest Request(ExecutionMode mode = ExecutionMode.Paper, bool explicitEnablement = false) =>
+    private static ExecutionRequest Request(ExecutionMode mode = ExecutionMode.Paper, bool explicitEnablement = false, string? environmentContext = null) =>
         new(
             new ExecutionContext(mode, explicitEnablement),
             Guid.Parse("11111111-1111-1111-1111-111111111111"),
@@ -12,7 +12,8 @@ public sealed class ExecutionProviderContractTests
             new Symbol("AAPL", "AAPL-1"),
             OrderSide.Buy,
             2,
-            100m);
+            100m,
+            environmentContext);
 
     [Fact]
     public void Rejects_Backtest_Execution_Request()
@@ -36,15 +37,37 @@ public sealed class ExecutionProviderContractTests
         Assert.Contains("explicit operator enablement", exception.Message);
     }
 
-    [Fact]
-    public void Accepts_Explicit_Live_Request_Without_Enabling_Provider_Reachability()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Rejects_Explicit_Live_Request_Without_Environment_Context(string? environmentContext)
     {
-        var request = Request(ExecutionMode.Live, true);
+        var request = Request(ExecutionMode.Live, true, environmentContext);
+
+        var action = () => ExecutionProviderContract.ValidateRequest(request);
+
+        var exception = Assert.Throws<InvalidOperationException>(action);
+        Assert.Contains("environment context", exception.Message);
+    }
+
+    [Fact]
+    public void Accepts_Explicit_Live_Request_With_Environment_Without_Enabling_Provider_Reachability()
+    {
+        var request = Request(ExecutionMode.Live, true, "sandbox");
 
         ExecutionProviderContract.ValidateRequest(request);
 
         ExecutionModePolicy.RequireExplicitLive(request.Context);
         Assert.False(ExecutionModePolicy.CanReachProvider(request.Context, "live"));
+    }
+
+    [Fact]
+    public void Accepts_Paper_Request_Without_Environment_Context()
+    {
+        var request = Request();
+
+        ExecutionProviderContract.ValidateRequest(request);
     }
 
     [Fact]
