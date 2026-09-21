@@ -77,4 +77,30 @@ public sealed class DurablePortfolioInitializerTests
         await new DurablePortfolioInitializer(factory.Object, portfolioId, 1_000_000m)
             .InitializeAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task Defers_Initialization_When_MySql_Is_Unavailable()
+    {
+        var portfolioId = Guid.NewGuid();
+        var repository = new Mock<IPortfolioRepository>();
+        var unitOfWork = new Mock<ITradingUnitOfWork>();
+        var factory = new Mock<ITradingUnitOfWorkFactory>();
+        var databaseException = new InvalidOperationException(
+            "An exception has been raised that is likely due to a transient failure.",
+            new Exception("Unable to connect to any of the specified MySQL hosts."));
+
+        repository.Setup(x => x.GetAsync(portfolioId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(databaseException);
+        unitOfWork.SetupGet(x => x.Portfolios).Returns(repository.Object);
+        factory.Setup(x => x.CreateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(unitOfWork.Object);
+
+        await new DurablePortfolioInitializer(factory.Object, portfolioId, 1_000_000m)
+            .InitializeAsync(CancellationToken.None);
+
+        repository.Verify(x => x.SaveAsync(
+            It.IsAny<PortfolioState>(),
+            It.IsAny<long>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWork.Verify(x => x.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
