@@ -22,6 +22,18 @@ public sealed class DurablePortfolioInitializer(
             new PortfolioState(portfolioId, startingCash, 0m, now, 0, startingCash),
             0,
             cancellationToken);
-        await unitOfWork.CommitAsync(cancellationToken);
+
+        try
+        {
+            await unitOfWork.CommitAsync(cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await using var verificationUnitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
+            if (await verificationUnitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken) is not null)
+                return;
+
+            throw;
+        }
     }
 }
