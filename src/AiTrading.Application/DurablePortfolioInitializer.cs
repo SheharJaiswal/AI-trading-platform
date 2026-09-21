@@ -13,7 +13,19 @@ public sealed class DurablePortfolioInitializer(
             throw new ArgumentOutOfRangeException(nameof(startingCash), "Starting cash must be positive.");
 
         await using var unitOfWork = await unitOfWorkFactory.CreateAsync(cancellationToken);
-        var existing = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
+        PortfolioState? existing;
+        try
+        {
+            existing = await unitOfWork.Portfolios.GetAsync(portfolioId, cancellationToken);
+        }
+        catch (InvalidOperationException ex) when (!cancellationToken.IsCancellationRequested &&
+            ex.InnerException?.Message.Contains("Unable to connect to any of the specified MySQL hosts", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            // Persistence startup is allowed to defer initialization while MySQL is unavailable.
+            // Readiness remains responsible for reporting the dependency as unavailable.
+            return;
+        }
+
         if (existing is not null)
             return;
 
